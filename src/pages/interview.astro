@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import FlashCard from '../components/FlashCard.astro';
+import { getNotesByCollection, getNoteTitle } from '../lib/notes.ts';
+import { parseFlashcards, type Flashcard } from '../lib/flashcards.ts';
+
+const notes = await getNotesByCollection('interview-notes');
+
+const cards: Flashcard[] = notes.flatMap((note) =>
+  parseFlashcards(note.entry.body ?? '', note.slug, getNoteTitle(note.entry)),
+);
+---
+
+<BaseLayout title="เตรียมสัมภาษณ์" description="ฝึกตอบคำถามสัมภาษณ์ด้วย flashcard">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-text">เตรียมสัมภาษณ์</h1>
+    <p class="mt-1 text-text-muted">{cards.length} คำถาม จาก {notes.length} โน้ต</p>
+  </div>
+
+  <FlashCard cards={cards} />
+</BaseLayout>

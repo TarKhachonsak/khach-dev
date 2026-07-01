@@ -1,0 +1,34 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+const minDepth = items.length > 0 ? Math.min(...items.map((h) => h.depth)) : 2;
+---
+
+{items.length > 0 && (
+  <nav class="sticky top-24 hidden max-h-[calc(100vh-8rem)] overflow-y-auto xl:block" aria-label="Table of contents">
+    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">ในหน้านี้</p>
+    <ul class="flex flex-col gap-1 border-l border-border text-sm">
+      {items.map((h) => (
+        <li style={`padding-left: ${(h.depth - minDepth) * 0.75 + 0.75}rem`}>
+          <a
+            href={`#${h.slug}`}
+            class="block truncate border-l -ml-px border-transparent py-0.5 pl-3 text-text-muted transition-colors hover:border-accent-2 hover:text-accent-2"
+            title={h.text}
+          >
+            {h.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

@@ -1,0 +1,224 @@
+---
+import type { Flashcard } from '../lib/flashcards.ts';
+
+interface Props {
+  cards: Flashcard[];
+}
+
+const { cards } = Astro.props;
+---
+
+{cards.length === 0 ? (
+  <p class="text-text-muted">ยังไม่มีคำถามสัมภาษณ์ในฐานข้อมูล</p>
+) : (
+  <div id="flashcard-app" class="mx-auto max-w-2xl">
+    <div class="mb-4 flex items-center justify-between text-sm text-text-muted">
+      <span id="fc-progress"></span>
+      <span id="fc-known-count"></span>
+    </div>
+
+    <div
+      id="fc-card"
+      class="min-h-[260px] cursor-pointer select-none rounded-xl border border-border bg-surface p-8 shadow-lg transition-colors hover:border-accent-2"
+      role="button"
+      tabindex="0"
+    >
+      <p id="fc-source" class="mb-4 text-xs uppercase tracking-wide text-accent"></p>
+      <p class="text-xs font-semibold uppercase tracking-wide text-text-muted">Question</p>
+      <p id="fc-question" class="mt-1 text-lg font-medium text-text"></p>
+
+      <div id="fc-answer-wrap" class="mt-6 hidden border-t border-border pt-6">
+        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-accent-2">Answer</p>
+        <p id="fc-answer" class="text-text"></p>
+        <p class="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-accent">คำอธิบายภาษาไทย</p>
+        <p id="fc-thai" class="text-text-muted"></p>
+      </div>
+
+      <p id="fc-reveal-hint" class="mt-6 text-sm text-text-muted">คลิกเพื่อดูคำตอบ</p>
+    </div>
+
+    <div class="mt-5 flex items-center justify-between gap-2">
+      <button id="fc-prev" type="button" class="rounded-md border border-border px-4 py-2 text-sm text-text hover:border-accent-2">
+        ก่อนหน้า
+      </button>
+      <div class="flex gap-2">
+        <button id="fc-unknown" type="button" class="rounded-md border border-red-500/40 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10">
+          ยังไม่รู้
+        </button>
+        <button id="fc-known" type="button" class="rounded-md border border-emerald-500/40 px-4 py-2 text-sm text-emerald-400 hover:bg-emerald-500/10">
+          รู้แล้ว
+        </button>
+      </div>
+      <button id="fc-next" type="button" class="rounded-md border border-border px-4 py-2 text-sm text-text hover:border-accent-2">
+        ถัดไป
+      </button>
+    </div>
+
+    <div class="mt-4 flex items-center justify-center gap-3">
+      <button id="fc-shuffle" type="button" class="rounded-md border border-border px-3 py-1.5 text-xs text-text-muted hover:border-accent-2 hover:text-accent-2">
+        สุ่มคำถาม
+      </button>
+      <button id="fc-reset" type="button" class="rounded-md border border-border px-3 py-1.5 text-xs text-text-muted hover:border-accent-2">
+        รีเซ็ตสถานะ
+      </button>
+    </div>
+
+    <script is:inline type="application/json" id="flashcard-data" set:html={JSON.stringify(cards)} />
+  </div>
+)}
+
+<script>
+  interface Flashcard {
+    id: string;
+    heading: string;
+    englishQuestion: string;
+    englishAnswer: string;
+    thaiExplanation: string;
+    sourceSlug: string;
+    sourceTitle: string;
+  }
+
+  type Status = 'known' | 'unknown';
+
+  const STORAGE_KEY = 'khdev-flashcard-status';
+
+  function escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function renderInline(value: string): string {
+    return escapeHtml(value)
+      .replace(/`([^`]+)`/g, '<code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em]">$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
+
+  function init() {
+    const dataEl = document.getElementById('flashcard-data');
+    if (!dataEl) return;
+
+    const cards: Flashcard[] = JSON.parse(dataEl.textContent ?? '[]');
+    if (cards.length === 0) return;
+
+    let statuses: Record<string, Status> = {};
+    try {
+      statuses = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    } catch {
+      statuses = {};
+    }
+
+    let order = cards.map((_, i) => i);
+    let pos = 0;
+    let revealed = false;
+
+    const el = {
+      progress: document.getElementById('fc-progress')!,
+      knownCount: document.getElementById('fc-known-count')!,
+      card: document.getElementById('fc-card')!,
+      source: document.getElementById('fc-source')!,
+      question: document.getElementById('fc-question')!,
+      answerWrap: document.getElementById('fc-answer-wrap')!,
+      answer: document.getElementById('fc-answer')!,
+      thai: document.getElementById('fc-thai')!,
+      hint: document.getElementById('fc-reveal-hint')!,
+      prev: document.getElementById('fc-prev')!,
+      next: document.getElementById('fc-next')!,
+      known: document.getElementById('fc-known')!,
+      unknown: document.getElementById('fc-unknown')!,
+      shuffle: document.getElementById('fc-shuffle')!,
+      reset: document.getElementById('fc-reset')!,
+    };
+
+    function saveStatuses() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(statuses));
+    }
+
+    function render() {
+      const card = cards[order[pos]];
+      el.source.textContent = card.sourceTitle === card.heading ? card.sourceTitle : `${card.sourceTitle} · ${card.heading}`;
+      el.question.innerHTML = renderInline(card.englishQuestion);
+
+      if (revealed) {
+        el.answer.innerHTML = renderInline(card.englishAnswer);
+        el.thai.innerHTML = renderInline(card.thaiExplanation);
+        el.answerWrap.classList.remove('hidden');
+        el.hint.classList.add('hidden');
+      } else {
+        el.answerWrap.classList.add('hidden');
+        el.hint.classList.remove('hidden');
+      }
+
+      const status = statuses[card.id];
+      el.card.classList.toggle('border-emerald-500/60', status === 'known');
+      el.card.classList.toggle('border-red-500/60', status === 'unknown');
+      el.card.classList.toggle('border-border', !status);
+
+      el.progress.textContent = `${pos + 1} / ${cards.length}`;
+      const knownTotal = Object.values(statuses).filter((s) => s === 'known').length;
+      el.knownCount.textContent = `รู้แล้ว ${knownTotal} / ${cards.length}`;
+    }
+
+    function goNext() {
+      pos = (pos + 1) % order.length;
+      revealed = false;
+      render();
+    }
+
+    function goPrev() {
+      pos = (pos - 1 + order.length) % order.length;
+      revealed = false;
+      render();
+    }
+
+    function mark(status: Status) {
+      const card = cards[order[pos]];
+      statuses[card.id] = status;
+      saveStatuses();
+      goNext();
+    }
+
+    function shuffle() {
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      pos = 0;
+      revealed = false;
+      render();
+    }
+
+    el.card.addEventListener('click', () => {
+      revealed = !revealed;
+      render();
+    });
+    el.card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        revealed = !revealed;
+        render();
+      }
+    });
+    el.next.addEventListener('click', goNext);
+    el.prev.addEventListener('click', goPrev);
+    el.known.addEventListener('click', () => mark('known'));
+    el.unknown.addEventListener('click', () => mark('unknown'));
+    el.shuffle.addEventListener('click', shuffle);
+    el.reset.addEventListener('click', () => {
+      statuses = {};
+      saveStatuses();
+      render();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.key === 'ArrowRight') goNext();
+      else if (e.key === 'ArrowLeft') goPrev();
+    });
+
+    render();
+  }
+
+  init();
+</script>

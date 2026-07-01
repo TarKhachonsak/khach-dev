@@ -1,0 +1,35 @@
+# DevExtreme dx-form Rendering Rules
+
+## What happened?
+
+ใน Angular + DevExtreme บาง section, card, button หรือ custom component ภายใน `dx-form` ไม่ render หรือเหลือ border ว่าง แม้ Angular condition ดูถูกต้อง
+
+## Why did it happen?
+
+DevExtreme `dx-form` จัดการ item rendering ผ่าน `dxi-item` และ template slot ของตัวเอง ไม่ได้ render arbitrary Angular content แบบ template ปกติทุกกรณี
+
+## Rendering Rules
+
+1. ถ้าต้องซ่อน `dxi-item` ทั้งก้อน ให้ใช้ `ng-container *ngIf` ครอบด้านนอก
+2. ถ้าวาง custom Angular component ใน `dxi-item` ให้ห่อด้วย `ng-template dxTemplate="item"`
+3. อย่าวาง plain HTML ตรง ๆ ใน `dx-form`; ให้ใส่ใน `dxi-item` + `dxTemplate` หรือย้ายออกนอก `dx-form`
+4. ถ้าเห็น empty card/border ให้สงสัย wrapper ของ DevExtreme ก่อน
+
+## Correct Pattern
+
+```html
+<ng-container *ngIf="shouldShowSection">
+  <dxi-item itemType="group" [colCount]="1" cssClass="card border">
+    <ng-template dxTemplate="item">
+      <app-custom-section [formData]="_formData"></app-custom-section>
+    </ng-template>
+  </dxi-item>
+</ng-container>
+```
+
+## Engineering Principle
+
+เมื่อใช้ UI library ที่มี rendering pipeline ของตัวเอง ต้องทำตาม template contract ของ library ไม่ใช่สมมติว่า Angular DOM projection จะทำงานเหมือน HTML ปกติ
+
+Related: [[DevExtreme dx-form Item Template Snippets]], [[Boolean Condition Truth Table]], [[Duplicate Panel with Different Variable]]
+

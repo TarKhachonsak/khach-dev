@@ -1,0 +1,155 @@
+---
+import TagBadge from './TagBadge.astro';
+import { CATEGORIES } from '../lib/categories.ts';
+import { getAllNotes, sortByDateDesc } from '../lib/notes.ts';
+
+const allNotes = await getAllNotes();
+
+const categoryCounts = new Map<string, number>();
+for (const note of allNotes) {
+  categoryCounts.set(note.collection, (categoryCounts.get(note.collection) ?? 0) + 1);
+}
+
+const recentNotes = sortByDateDesc(allNotes.filter((n) => n.date)).slice(0, 5);
+
+const tagCounts = new Map<string, number>();
+for (const note of allNotes) {
+  for (const tag of note.tags) {
+    tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  }
+}
+const topTags = [...tagCounts.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 14);
+
+const searchIndex = allNotes.map((n) => ({ title: n.title, slug: n.slug, collection: n.collection }));
+
+const currentPath = Astro.url.pathname;
+---
+
+<nav class="flex h-full flex-col gap-6 bg-surface px-4 py-5" aria-label="Sidebar">
+  <a href="/" class="flex items-center gap-2 px-1 text-lg font-semibold">
+    <span class="bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">kh</span><span class="text-text">.dev</span>
+  </a>
+
+  <div class="relative">
+    <input
+      id="sidebar-search-input"
+      type="search"
+      placeholder="ค้นหา..."
+      autocomplete="off"
+      class="w-full rounded-md border border-border bg-bg px-3 py-1.5 text-sm text-text placeholder:text-text-muted focus:border-accent-2 focus:outline-none"
+    />
+    <div
+      id="sidebar-search-results"
+      class="absolute left-0 right-0 top-full z-50 mt-1 hidden max-h-72 overflow-y-auto rounded-md border border-border bg-surface shadow-lg"
+    >
+    </div>
+  </div>
+
+  <div>
+    <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-text-muted">หมวดหมู่</p>
+    <ul class="flex flex-col gap-0.5">
+      {CATEGORIES.map((category) => {
+        const href = `/${category.key}`;
+        const active = currentPath === href || currentPath.startsWith(`${href}/`);
+        return (
+          <li>
+            <a
+              href={href}
+              class={`flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+                active ? 'bg-accent/15 text-accent-2' : 'text-text hover:bg-bg hover:text-accent-2'
+              }`}
+            >
+              <span>{category.label}</span>
+              <span class="text-xs text-text-muted">{categoryCounts.get(category.key) ?? 0}</span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+
+  {recentNotes.length > 0 && (
+    <div>
+      <p class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-text-muted">ล่าสุด</p>
+      <ul class="flex flex-col gap-0.5">
+        {recentNotes.map((note) => (
+          <li>
+            <a
+              href={`/notes/${note.slug}`}
+              class="block truncate rounded-md px-2.5 py-1 text-sm text-text-muted transition-colors hover:bg-bg hover:text-accent-2"
+              title={note.title}
+            >
+              {note.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  {topTags.length > 0 && (
+    <div>
+      <a href="/tags" class="mb-2 block px-1 text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-accent-2">
+        แท็กทั้งหมด
+      </a>
+      <div class="flex flex-wrap gap-1.5 px-1">
+        {topTags.map(([tag, count]) => (
+          <TagBadge tag={tag} count={count} />
+        ))}
+      </div>
+    </div>
+  )}
+</nav>
+
+<script is:inline type="application/json" id="sidebar-search-index" set:html={JSON.stringify(searchIndex)} />
+
+<script>
+  interface SearchItem {
+    title: string;
+    slug: string;
+    collection: string;
+  }
+
+  const indexEl = document.getElementById('sidebar-search-index');
+  const items: SearchItem[] = indexEl ? JSON.parse(indexEl.textContent ?? '[]') : [];
+
+  const input = document.getElementById('sidebar-search-input') as HTMLInputElement | null;
+  const results = document.getElementById('sidebar-search-results');
+
+  function render(query: string) {
+    if (!results) return;
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      results.classList.add('hidden');
+      results.innerHTML = '';
+      return;
+    }
+    const matches = items.filter((item) => item.title.toLowerCase().includes(q)).slice(0, 8);
+    if (matches.length === 0) {
+      results.innerHTML = '<p class="px-3 py-2 text-sm text-text-muted">ไม่พบผลลัพธ์</p>';
+      results.classList.remove('hidden');
+      return;
+    }
+    results.innerHTML = matches
+      .map((item) => {
+        const a = document.createElement('a');
+        a.href = `/notes/${item.slug}`;
+        a.className = 'block truncate px-3 py-2 text-sm text-text hover:bg-bg hover:text-accent-2';
+        a.textContent = item.title;
+        return a.outerHTML;
+      })
+      .join('');
+    results.classList.remove('hidden');
+  }
+
+  input?.addEventListener('input', () => render(input.value));
+  input?.addEventListener('focus', () => render(input.value));
+  document.addEventListener('click', (e) => {
+    if (!results || !input) return;
+    if (e.target !== input && !results.contains(e.target as Node)) {
+      results.classList.add('hidden');
+    }
+  });
+</script>

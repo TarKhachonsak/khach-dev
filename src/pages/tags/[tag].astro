@@ -1,0 +1,44 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import NoteCard from '../../components/NoteCard.astro';
+import { slugify } from '../../lib/slugify.ts';
+import { getAllNotes, sortByDateDesc } from '../../lib/notes.ts';
+
+export async function getStaticPaths() {
+  const allNotes = await getAllNotes();
+  const byTagSlug = new Map<string, { label: string; notes: typeof allNotes }>();
+
+  for (const note of allNotes) {
+    for (const tag of note.tags) {
+      const key = slugify(tag);
+      const bucket = byTagSlug.get(key);
+      if (bucket) bucket.notes.push(note);
+      else byTagSlug.set(key, { label: tag, notes: [note] });
+    }
+  }
+
+  return [...byTagSlug.entries()].map(([tag, { label, notes }]) => ({
+    params: { tag },
+    props: { label, notes: sortByDateDesc(notes) },
+  }));
+}
+
+interface Props {
+  label: string;
+  notes: Awaited<ReturnType<typeof getAllNotes>>;
+}
+
+const { label, notes } = Astro.props;
+---
+
+<BaseLayout title={`#${label}`} description={`โน้ตทั้งหมดที่มีแท็ก ${label}`}>
+  <div class="mb-6">
+    <p class="text-xs font-semibold uppercase tracking-wide text-text-muted">แท็ก</p>
+    <h1 class="text-2xl font-semibold text-text">#{label}</h1>
+    <p class="mt-1 text-text-muted">{notes.length} โน้ต</p>
+  </div>
+
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    {notes.map((note) => <NoteCard note={note} showCategory />)}
+  </div>
+</BaseLayout>

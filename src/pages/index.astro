@@ -1,0 +1,53 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import NoteCard from '../components/NoteCard.astro';
+import { CATEGORIES } from '../lib/categories.ts';
+import { getAllNotes, getNotesByCollection, sortByDateDesc } from '../lib/notes.ts';
+
+const allNotes = await getAllNotes();
+const categoryCounts = new Map<string, number>();
+for (const note of allNotes) {
+  categoryCounts.set(note.collection, (categoryCounts.get(note.collection) ?? 0) + 1);
+}
+
+const dailyNotes = await getNotesByCollection('daily-notes');
+const recentDailyNotes = sortByDateDesc(dailyNotes).slice(0, 5);
+---
+
+<BaseLayout title="หน้าแรก">
+  <section class="mb-10">
+    <h1 class="text-2xl font-semibold text-text">
+      ฐานความรู้การเขียนโปรแกรมของ <span class="bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">kh</span>
+    </h1>
+    <p class="mt-2 max-w-2xl text-text-muted">
+      รวมบันทึกความรู้ บั๊กที่เจอ คำถามสัมภาษณ์ และการออกแบบระบบ สังเคราะห์จาก Obsidian vault
+    </p>
+  </section>
+
+  <section class="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {CATEGORIES.map((category) => (
+      <a
+        href={`/${category.key}`}
+        class="rounded-lg border border-border bg-surface p-5 transition-colors hover:border-accent-2"
+      >
+        <p class="text-sm text-text-muted">{category.labelEn}</p>
+        <p class="mt-1 text-lg font-medium text-text">{category.label}</p>
+        <p class="mt-3 text-3xl font-semibold text-accent-2">{categoryCounts.get(category.key) ?? 0}</p>
+      </a>
+    ))}
+  </section>
+
+  <section>
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-text">บันทึกประจำวันล่าสุด</h2>
+      <a href="/daily-notes" class="text-sm text-accent-2 hover:underline">ดูทั้งหมด</a>
+    </div>
+    {recentDailyNotes.length > 0 ? (
+      <div class="grid gap-3 sm:grid-cols-2">
+        {recentDailyNotes.map((note) => <NoteCard note={note} />)}
+      </div>
+    ) : (
+      <p class="text-text-muted">ยังไม่มีบันทึกประจำวัน</p>
+    )}
+  </section>
+</BaseLayout>

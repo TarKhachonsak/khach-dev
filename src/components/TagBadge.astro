@@ -1,0 +1,20 @@
+---
+import { slugify } from '../lib/slugify.ts';
+
+interface Props {
+  tag: string;
+  count?: number;
+  class?: string;
+}
+
+const { tag, count, class: className = '' } = Astro.props;
+const href = `/tags/${slugify(tag)}`;
+---
+
+<a
+  href={href}
+  class={`inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs text-text-muted transition-colors hover:border-accent-2 hover:text-accent-2 ${className}`}
+>
+  <span>#{tag}</span>
+  {count !== undefined && <span class="text-text-muted/70">{count}</span>}
+</a>

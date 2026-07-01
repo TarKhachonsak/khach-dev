@@ -1,0 +1,64 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TagBadge from '../../components/TagBadge.astro';
+import TableOfContents from '../../components/TableOfContents.astro';
+import { CATEGORIES, getCategoryMeta, type CollectionKey } from '../../lib/categories.ts';
+import { getNotesByCollection, getNoteTitle, getEffectiveDate } from '../../lib/notes.ts';
+
+export async function getStaticPaths() {
+  const paths = [];
+  for (const { key } of CATEGORIES) {
+    const notes = await getNotesByCollection(key);
+    for (const note of notes) {
+      paths.push({ params: { slug: note.slug }, props: { collection: key, entry: note.entry } });
+    }
+  }
+  return paths;
+}
+
+interface Props {
+  collection: CollectionKey;
+  entry: Awaited<ReturnType<typeof getNotesByCollection>>[number]['entry'];
+}
+
+const { collection, entry } = Astro.props;
+const meta = getCategoryMeta(collection);
+const title = getNoteTitle(entry);
+const date = getEffectiveDate(entry, collection);
+const tags = entry.data.tags ?? [];
+const { Content, headings } = await render(entry);
+
+const formattedDate = date
+  ? date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
+  : null;
+---
+
+<BaseLayout title={title}>
+  <div class="xl:grid xl:grid-cols-[minmax(0,1fr)_220px] xl:items-start xl:gap-10">
+    <article class="min-w-0">
+      <nav class="mb-4 text-sm text-text-muted" aria-label="Breadcrumb">
+        <a href={`/${meta.key}`} class="hover:text-accent-2">{meta.label}</a>
+        <span class="mx-1.5">/</span>
+        <span class="text-text">{title}</span>
+      </nav>
+
+      <h1 class="text-2xl font-semibold text-text">{title}</h1>
+
+      <div class="mt-2 flex flex-wrap items-center gap-3">
+        {formattedDate && <span class="text-sm text-text-muted">{formattedDate}</span>}
+        {tags.length > 0 && (
+          <div class="flex flex-wrap gap-1.5">
+            {tags.map((tag) => <TagBadge tag={tag} />)}
+          </div>
+        )}
+      </div>
+
+      <div class="note-prose prose prose-invert mt-8 max-w-none">
+        <Content />
+      </div>
+    </article>
+
+    <TableOfContents headings={headings} />
+  </div>
+</BaseLayout>

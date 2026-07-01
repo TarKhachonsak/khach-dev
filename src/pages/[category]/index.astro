@@ -1,0 +1,104 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import NoteCard from '../../components/NoteCard.astro';
+import { CATEGORIES, getCategoryMeta, type CollectionKey } from '../../lib/categories.ts';
+import { getNotesByCollection, sortByDateDesc } from '../../lib/notes.ts';
+
+export async function getStaticPaths() {
+  return CATEGORIES.map((category) => ({ params: { category: category.key } }));
+}
+
+const { category } = Astro.params as { category: CollectionKey };
+const meta = getCategoryMeta(category);
+const notes = sortByDateDesc(await getNotesByCollection(category));
+
+const tagCounts = new Map<string, number>();
+for (const note of notes) {
+  for (const tag of note.tags) {
+    tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  }
+}
+const tags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]);
+---
+
+<BaseLayout title={meta.label} description={`ทุกโน้ตในหมวด ${meta.label}`}>
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-text">{meta.label}</h1>
+    <p class="mt-1 text-text-muted">{notes.length} โน้ต</p>
+  </div>
+
+  {tags.length > 0 && (
+    <div class="mb-6 flex flex-wrap items-center gap-2" id="tag-filter-bar">
+      <span class="text-xs font-semibold uppercase tracking-wide text-text-muted">กรองตามแท็ก:</span>
+      {tags.map(([tag, count]) => (
+        <button
+          type="button"
+          class="tag-filter-chip rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs text-text-muted transition-colors hover:border-accent-2 hover:text-accent-2"
+          data-tag={tag}
+        >
+          #{tag} <span class="text-text-muted/70">{count}</span>
+        </button>
+      ))}
+      <button
+        type="button"
+        id="tag-filter-clear"
+        class="hidden rounded-full border border-accent px-2.5 py-0.5 text-xs text-accent"
+      >
+        ล้างตัวกรอง
+      </button>
+    </div>
+  )}
+
+  {notes.length > 0 ? (
+    <div id="note-grid" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {notes.map((note) => (
+        <div class="note-card-item" data-tags={note.tags.join(',')}>
+          <NoteCard note={note} />
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p class="text-text-muted">ยังไม่มีโน้ตในหมวดนี้</p>
+  )}
+  <p id="note-grid-empty" class="hidden text-text-muted">ไม่พบโน้ตที่ตรงกับแท็กที่เลือก</p>
+</BaseLayout>
+
+<script>
+  const chips = document.querySelectorAll<HTMLButtonElement>('.tag-filter-chip');
+  const clearBtn = document.getElementById('tag-filter-clear');
+  const items = document.querySelectorAll<HTMLElement>('.note-card-item');
+  const emptyMsg = document.getElementById('note-grid-empty');
+  const selected = new Set<string>();
+
+  function applyFilter() {
+    let visibleCount = 0;
+    items.forEach((item) => {
+      const tags = (item.dataset.tags ?? '').split(',').filter(Boolean);
+      const visible = selected.size === 0 || tags.some((t) => selected.has(t));
+      item.classList.toggle('hidden', !visible);
+      if (visible) visibleCount++;
+    });
+    emptyMsg?.classList.toggle('hidden', visibleCount !== 0);
+    clearBtn?.classList.toggle('hidden', selected.size === 0);
+  }
+
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const tag = chip.dataset.tag ?? '';
+      if (selected.has(tag)) {
+        selected.delete(tag);
+        chip.classList.remove('border-accent-2', 'text-accent-2', 'bg-accent/10');
+      } else {
+        selected.add(tag);
+        chip.classList.add('border-accent-2', 'text-accent-2', 'bg-accent/10');
+      }
+      applyFilter();
+    });
+  });
+
+  clearBtn?.addEventListener('click', () => {
+    selected.clear();
+    chips.forEach((chip) => chip.classList.remove('border-accent-2', 'text-accent-2', 'bg-accent/10'));
+    applyFilter();
+  });
+</script>

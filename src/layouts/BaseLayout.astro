@@ -1,0 +1,60 @@
+---
+import '../styles/global.css';
+import Sidebar from '../components/Sidebar.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'ฐานความรู้และบันทึกการเขียนโปรแกรมส่วนตัว' } = Astro.props;
+---
+
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <title>{title} · kh.dev</title>
+  </head>
+  <body class="min-h-screen bg-bg">
+    <div class="lg:flex">
+      <input type="checkbox" id="sidebar-toggle" class="peer hidden" />
+
+      <label
+        for="sidebar-toggle"
+        class="fixed inset-0 z-30 hidden bg-black/60 peer-checked:block lg:hidden"
+        aria-hidden="true"
+      ></label>
+
+      <div
+        class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full border-r border-border bg-surface transition-transform duration-200 ease-in-out peer-checked:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:translate-x-0 lg:shrink-0"
+      >
+        <Sidebar />
+      </div>
+
+      <div class="min-w-0 flex-1">
+        <div
+          class="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-bg/95 px-4 py-3 backdrop-blur lg:hidden"
+        >
+          <label
+            for="sidebar-toggle"
+            class="cursor-pointer rounded-md p-1.5 text-text hover:bg-surface"
+            aria-label="เปิดเมนู"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+          </label>
+          <a href="/" class="text-sm font-semibold">
+            <span class="bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">kh</span><span class="text-text">.dev</span>
+          </a>
+        </div>
+
+        <main class="px-6 py-8 lg:px-10">
+          <slot />
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

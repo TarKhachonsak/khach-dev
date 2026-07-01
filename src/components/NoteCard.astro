@@ -1,0 +1,33 @@
+---
+import TagBadge from './TagBadge.astro';
+import { getCategoryMeta } from '../lib/categories.ts';
+import type { NoteWithMeta } from '../lib/notes.ts';
+
+interface Props {
+  note: NoteWithMeta;
+  showCategory?: boolean;
+}
+
+const { note, showCategory = false } = Astro.props;
+const category = getCategoryMeta(note.collection);
+const formattedDate = note.date
+  ? note.date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
+  : null;
+---
+
+<div class="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-accent-2">
+  <a href={`/notes/${note.slug}`} class="group block">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="font-medium text-text group-hover:text-accent-2">{note.title}</h3>
+      {formattedDate && <span class="shrink-0 text-xs text-text-muted">{formattedDate}</span>}
+    </div>
+    {showCategory && (
+      <p class="mt-1 text-xs text-accent">{category.label}</p>
+    )}
+  </a>
+  {note.tags.length > 0 && (
+    <div class="mt-3 flex flex-wrap gap-1.5">
+      {note.tags.map((tag) => <TagBadge tag={tag} />)}
+    </div>
+  )}
+</div>
