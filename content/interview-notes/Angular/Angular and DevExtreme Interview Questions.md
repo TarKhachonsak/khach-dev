@@ -132,3 +132,43 @@ Related: [[Fix Function Called in Wrong Lifecycle Phase]]
 **Thai Explanation:** ทำ recursive walk ที่สร้าง object ใหม่ทุกชั้น ไม่แตะต้อง original schema — เมื่อ bind schema ใหม่ component จะ re-render ตามค่าที่แก้ไข
 
 Related: [[Patch Formio Schema Dynamically]]
+
+## 15. Duplicate template names inside dx-form
+
+**English Question:** What happens in DevExtreme `dx-form` if two `dxi-item` elements register a `cellTemplate` with the same name, and how do you avoid it?
+
+**English Answer:** `dx-form` template names must be unique within the form. If two items share a name, DevExtreme resolves to the first-registered template only, so the second item silently fails to render as intended. This commonly happens when copy-pasting a button block from one wizard step to another without renaming the template.
+
+**Thai Explanation:** ชื่อ `cellTemplate` ต้อง unique ทั่วทั้ง form ถ้าซ้ำกัน DevExtreme จะ resolve ไปยัง template แรกเท่านั้น มักเกิดตอน copy ปุ่มควบคุมจากหน้าหนึ่งไปอีกหน้าหนึ่งแล้วลืมเปลี่ยนชื่อ
+
+Related: [[Duplicate cellTemplate Name in dx-form]]
+
+## 16. Building a multi-step wizard on top of an existing dx-form
+
+**English Question:** What are the minimum pieces required to turn a single-page `dx-form` into a validated multi-step wizard?
+
+**English Answer:** Three cooperating pieces: (1) page state — a current page index, total page count, and a completed-steps array; (2) navigation methods (`onNextPage`, `onPreviousPage`, `onGoToPage`) that all funnel forward navigation through one `validateCurrentPage()` gate; (3) template structure where each page's content and per-page controls are wrapped in `*ngIf="_currentFormPage === N"`. Missing any one piece produces a wizard that looks like it works but silently breaks (e.g., content shows on every page, or navigation isn't actually validated).
+
+**Thai Explanation:** ต้องมี state (หน้า/จำนวนหน้า/สถานะ complete), method navigation ที่ forward ทุกทิศไปข้างหน้าผ่าน `validateCurrentPage()` จุดเดียว, และเนื้อหาต้องผูก `*ngIf` ตามเลขหน้าจริง — ขาดส่วนใดส่วนหนึ่งจะดู "ทำงานได้" แต่พังเงียบๆ
+
+Related: [[Multi-Page Form Stepper Pattern]]
+
+## 17. Debugging a "field is always undefined" bug
+
+**English Question:** A component field like `approveValue` is always `undefined` even though the code reads it in several places. Where do you look first?
+
+**English Answer:** Grep for every assignment (`=`) to that field across the file, not just its usages. A field that's declared with a type but has no default value and no assignment anywhere is a strong signal the wiring was never completed — often because the component was copy-duplicated from another file and an assignment step (e.g., inside a data-load callback) was dropped along the way.
+
+**Thai Explanation:** grep หาจุด assign (ไม่ใช่จุดใช้งาน) ของตัวแปรนั้นก่อนเสมอ — ถ้าไม่เจอจุด assign เลยทั้งไฟล์ แปลว่า wiring ขาดไปตั้งแต่ต้น มักเกิดจาก copy component มาแล้ว method ที่ควร assign ค่าตกหล่นไประหว่างทาง
+
+Related: [[Declared but Unassigned State]]
+
+## 18. Registering a duplicated Angular component
+
+**English Question:** After copying an existing Angular component's files to create a new one, what else must be updated before it actually renders in place of the old one?
+
+**English Answer:** Two separate registration layers, both required: the component must be added to its `NgModule`'s `declarations` (framework level), and it must be wired into whatever application-level mapping selects components at runtime — e.g. a task-code-to-component map in a router-like service. Copying files and updating imports alone is not enough; skipping either layer leaves the old component silently in use.
+
+**Thai Explanation:** ต้อง wire สองชั้นเสมอ: เพิ่มเข้า `declarations` ของ `NgModule` (framework level) และแก้ mapping ระดับแอป (เช่น task-code-to-component map) — ขาดชั้นใดชั้นหนึ่ง component เก่าจะยังถูกใช้งานอยู่โดยไม่มี error เตือน
+
+Related: [[Duplicate Component Registration Checklist]]
