@@ -48,4 +48,6 @@ validate(): boolean {
 
 บน `Form19OfficerTaskComponent` — field บางตัวต้อง required เฉพาะเมื่อเจ้าหน้าที่เลือก approve (`approveValue === 'A'`) ไม่ใช่ตอน reject
 
-Related: [[Conditional Validation]], [[FormData Overwritten by Double Assignment]]
+อีกตัวอย่างใน shared validate helper (`helper-form-inspection-location.ts`, `case "FLOW_05_TASK_306"`): บังคับกรอกวันที่ขยายเวลา (`PHINAI5_SUM_DATE`) เฉพาะตอน `formValue === 'A'` เท่านั้น — ก่อนหน้านี้ field ถูกซ่อน/แสดงด้วย `*ngIf` แต่ไม่มี validation รองรับ ทำให้ยืนยันข้ามไปได้ทั้งที่ยังไม่กรอกวันที่ (ดู [[Approve Value Scoped to Wrong Task]])
+
+Related: [[Conditional Validation]], [[FormData Overwritten by Double Assignment]], [[Approve Value Scoped to Wrong Task]]

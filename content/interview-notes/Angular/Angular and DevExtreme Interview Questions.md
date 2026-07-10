@@ -172,3 +172,23 @@ Related: [[Declared but Unassigned State]]
 **Thai Explanation:** ต้อง wire สองชั้นเสมอ: เพิ่มเข้า `declarations` ของ `NgModule` (framework level) และแก้ mapping ระดับแอป (เช่น task-code-to-component map) — ขาดชั้นใดชั้นหนึ่ง component เก่าจะยังถูกใช้งานอยู่โดยไม่มี error เตือน
 
 Related: [[Duplicate Component Registration Checklist]]
+
+## 19. Sharing a decision value across sequential workflow steps
+
+**English Question:** Two sequential steps in the same workflow both expose a property called `approveValue`, computed the same way (`${taskCode}_approve`). Step B needs to know what was chosen in step A. Why is reading `this.approveValue` in step B wrong, and how do you fix it?
+
+**English Answer:** Each step's `approveValue` is scoped to that step's own question — the naming convention is identical but the underlying key (and possibly the set of valid answers) differs per task. Reading it directly conflates "my own answer" with "the previous step's answer". The fix is to reconstruct the *specific* upstream task's key from a shared, stable part of the identifier (e.g., a flow-instance prefix common to both steps) and read it from the persisted record both steps share (keyed by a business/case id), not from the current step's own form event data.
+
+**Thai Explanation:** `approveValue` ของแต่ละ step คำนวณจากคำถามของ step นั้นเอง ชื่อตัวแปรเหมือนกันแต่ key/ความหมายคนละอัน อ่านตรงๆ จะผิด ต้อง reconstruct key ของ step ที่ต้องการจริงจากส่วนที่ทั้งสอง step ใช้ร่วมกัน (เช่น flow prefix) แล้วอ่านจาก record ที่ persist ร่วมกันผ่าน business id ไม่ใช่จาก form event ของ step ปัจจุบัน
+
+Related: [[Cross-Task Decision via Dynamic Flow Key]], [[Approve Value Scoped to Wrong Task]]
+
+## 20. Hidden form field still carrying a stale value
+
+**English Question:** A field bound to a form library's `dataField` is hidden with `*ngIf` based on a condition. The user changes the condition so the field should no longer apply, but the old value still gets submitted. Why, and how do you prevent it?
+
+**English Answer:** `*ngIf` removes the rendered element from the DOM, but the underlying data-bound value in the model object is untouched — the form library only reads/writes it while the element exists, it doesn't clear it on removal. If the field is irrelevant under the new condition, the code must explicitly null out that value (in the change handler and, defensively, right before submit) rather than relying on visibility alone.
+
+**Thai Explanation:** `*ngIf` แค่ถอด element ออกจาก DOM ไม่ได้แตะค่าที่ผูกไว้ใน model object — ต้อง set ค่าเป็น `null`/`undefined` เองตอนเงื่อนไขเปลี่ยน ไม่งั้นค่าเก่าจะหลุดติดไปกับการ submit ครั้งถัดไป
+
+Related: [[Approve Value Scoped to Wrong Task]], [[Restore UI State After Load Data]]
