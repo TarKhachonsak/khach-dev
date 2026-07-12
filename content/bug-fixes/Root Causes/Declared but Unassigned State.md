@@ -44,6 +44,6 @@ onFieldChange(event: any) {
 
 > Bug ที่ไม่ throw error (state เงียบๆ เป็น `undefined`) จะไม่ถูกจับจนกว่าจะมี logic ใหม่ไปพึ่งพามัน — เวลา debug logic ใหม่ที่ "ไม่ทำงานเลย" ให้สงสัย state ที่มันอ่านค่าก่อน ไม่ใช่ logic ที่เพิ่งเขียน
 
-Related: [[ApproveValue Not Restored After Draft Load]], [[Restore UI State After Load Data]], [[Multi-Page Form Stepper Pattern]]
+Related: [[ApproveValue Not Restored After Draft Load]], [[Restore UI State After Load Data]], [[Multi-Page Form Stepper Pattern]], [[Property Used but Never Declared]]
 
 อ้างอิงจาก: [[2026-07-02]]
