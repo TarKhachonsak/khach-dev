@@ -192,3 +192,33 @@ Related: [[Cross-Task Decision via Dynamic Flow Key]], [[Approve Value Scoped to
 **Thai Explanation:** `*ngIf` แค่ถอด element ออกจาก DOM ไม่ได้แตะค่าที่ผูกไว้ใน model object — ต้อง set ค่าเป็น `null`/`undefined` เองตอนเงื่อนไขเปลี่ยน ไม่งั้นค่าเก่าจะหลุดติดไปกับการ submit ครั้งถัดไป
 
 Related: [[Approve Value Scoped to Wrong Task]], [[Restore UI State After Load Data]]
+
+## 21. Designing visibility for a feature shared across many callers
+
+**English Question:** A shared component is used by five different parent forms across many workflow variants. One boolean getter decides whether a sub-feature (e.g. a button) is shown. How do you decide between "always show it" versus "show it only for an allowlist of caller codes"?
+
+**English Answer:** It depends entirely on the actual, confirmed requirement — not on what's easiest to code. If every current caller genuinely needs the same behavior, an unconditional `return true` is correct and has zero maintenance cost (no list to keep in sync). If only some callers should see it, an allowlist keyed by a stable identifier (like a task/flow code) is required, and that list must be revisited whenever a new caller is added. Guessing wrong in either direction causes churn — get explicit confirmation of scope from someone who knows the business requirement before choosing.
+
+**Thai Explanation:** ต้องยืนยัน requirement จริงก่อนเลือก ถ้าทุก caller ต้องการเหมือนกัน `return true` คือคำตอบที่ maintain ง่ายที่สุด ถ้ามีบาง caller ที่ต้องการต่างออกไป ต้องทำ allowlist ตาม task/flow code และคอยอัปเดตทุกครั้งที่มี caller ใหม่ — เดาผิดทางไหนก็เสียเวลาแก้ซ้ำทั้งคู่
+
+Related: [[Force-Show Feature by Task Code Allowlist]]
+
+## 22. Diagnosing "value is sent but not saved"
+
+**English Question:** A frontend confirms a field's value is included in the outgoing request payload, but the value never appears in the database afterward. What's your debugging order?
+
+**English Answer:** Peel it back one layer at a time instead of jumping straight to "it's a backend bug": (1) confirm the frontend actually sets a real value at every point the payload is built — grep for every assignment, not just usages; (2) confirm the request is hitting the *correct* service/endpoint — projects with multiple similarly-named service versions (e.g. a "v5" and "v6" of the same form's API) make it easy to call the wrong one, where the field is present in the body but the endpoint doesn't map it to the right table/report; (3) only after ruling out both of those, suspect the backend DTO/mapping itself. Fixing this class of bug is often not "add the missing field" — it can be "call the correct endpoint."
+
+**Thai Explanation:** อย่าข้ามไปสงสัย backend ทันที ให้ไล่เช็คทีละชั้น: (1) FE set ค่าจริงหรือไม่ (grep จุด assign ทั้งหมด) (2) เรียก endpoint/service ถูกตัวหรือไม่ — โปรเจกต์ที่มี service เวอร์ชันคล้ายกันหลายตัวทำให้เรียกผิดง่ายมาก แม้ field จะอยู่ใน body จริงก็ตาม (3) ถ้าสองข้อบนถูกหมดแล้วค่อยสงสัย backend DTO — บางครั้งทางแก้คือเปลี่ยน endpoint ที่เรียก ไม่ใช่แค่เพิ่ม field
+
+Related: [[Service Endpoint Mismatch Blocks Field From Persisting]]
+
+## 23. Preventing two developers from silently overwriting each other's fix
+
+**English Question:** Two developers, working days apart, each fix the same bug in the same shared component's getter — with genuinely different (and incompatible) approaches. Neither knew the other had touched the file. Git merges cleanly with no conflict. What process step would have caught this before it happened, and why doesn't git catch it on its own?
+
+**English Answer:** Check the file's recent commit history (`git log -- <path>`) before designing a fix for a shared/common component, and read the message and diff of anything relevant. Git's merge/conflict detection only operates at the text-line level — if two commits touch the same logical getter but not literally overlapping lines (or one fully replaces what the other changed, on different days), git will merge them without complaint. It has no concept of "these two changes represent incompatible intents." That gap has to be closed by a human habit — checking history and syncing with the team — not by tooling.
+
+**Thai Explanation:** เช็ค `git log` ของไฟล์ก่อนแก้ shared component เสมอ แล้วอ่าน commit ที่เกี่ยวข้องก่อนออกแบบ fix ใหม่ — git ตรวจจับ conflict แค่ระดับบรรทัดข้อความเท่านั้น ถ้าสอง commit แก้ logic เดียวกันคนละแนวทางแต่ไม่ชนกันตรงบรรทัด (หรือมาแทนที่กันคนละวัน) git จะ merge ผ่านเงียบๆ โดยไม่เตือนอะไรเลย ต้องอาศัยนิสัยของคน (เช็ค log, คุยกับทีมก่อนแก้) มาปิดช่องว่างนี้แทน
+
+Related: [[Check Recent Commits Before Fixing Shared Component]]
