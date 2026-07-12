@@ -60,4 +60,4 @@ Parent อาจส่ง `formData` object ใหม่มาหลัง API r
 
 DevExtreme widget มี rendering pipeline ของตัวเอง — การ mutate JavaScript object โดยตรงไม่ทำให้ widget รู้ว่าข้อมูลเปลี่ยน ต้องใช้ API ของ widget เสมอ
 
-Related: [[Angular Lifecycle Hooks — @ViewChild Timing]], [[DevExtreme dx-form Rendering Rules]]
+Related: [[Angular Lifecycle Hooks — @ViewChild Timing]], [[DevExtreme dx-form Rendering Rules]], [[DevExtreme onValueChanged Fires During Programmatic Data Load]]

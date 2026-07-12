@@ -41,6 +41,17 @@ this._formData = {
 };
 ```
 
+## Note on Timing — Spread คัดลอกค่า ณ เวลานั้น ไม่ track การเปลี่ยนแปลงทีหลัง
+
+```typescript
+const params = { ...this._formData };   // copy ค่า PAYMENT_DUE_DAY = 20 ตอนนี้
+await someAsyncDialog();                // ระหว่างรอ dialog มีโค้ดอื่นไป set
+                                         // this._formData.PAYMENT_DUE_DAY = 15
+// params.PAYMENT_DUE_DAY ยังคงเป็น 20 — primitive ถูก copy ไปแล้ว ไม่ผูกกับ source อีก
+```
+
+มีประโยชน์ตอน debug อาการ "ค่าที่ log ตอน build payload ถูก แต่ค่าที่ยิงจริงผิด" — ถ้า payload ถูก spread ไว้ก่อนจุดที่ค่าอาจเปลี่ยน (เช่นก่อน `await` dialog) primitive fields จะ "ล็อก" ค่าไว้แล้ว ไม่ใช่สาเหตุที่ค่าเพี้ยน ต้องหาสาเหตุจากจุดอื่น (เช่นตัวแปรที่ใช้ผิดตัว ไม่ใช่ timing ของ spread)
+
 ## Note on Nested Objects
 
 Spread merge ทำแค่ **shallow copy** — ถ้า property เป็น nested object จะ share reference
@@ -52,4 +63,6 @@ const merged = { ...a, ...b };
 // merged.x === { z: 2 } — nested x จาก a หายไป!
 ```
 
-Related: [[FormData Overwritten by Double Assignment]], [[Angular Input Object Reference]]
+Related: [[FormData Overwritten by Double Assignment]], [[Angular Input Object Reference]], [[Array.isArray Guard on Wrong Variable Silently Drops Data]]
+
+อ้างอิงจาก: [[2026-07-09]]
