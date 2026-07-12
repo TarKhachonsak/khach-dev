@@ -60,3 +60,30 @@ this._formData?.['flow_05_task_306_approve']
 Related: [[ApproveValue Not Restored After Draft Load]], [[Approve Value Scoped to Wrong Task]], [[Restore UI State After Load Data]]
 
 Source: [[2026-07-03]]
+
+## Update 2026-07-10 — Generalize เป็น shared helper เมื่อต้องอ้างหลาย task พร้อมกัน
+
+`Form06OfficerTaskComponent` ต้องการอ่านผลของ **สอง** task ก่อนหน้า (`task_306_approve` และ `task_006_approve` — คนละ task number กันคนละ flow variant) โค้ดเดิมมี getter แยก 2 ตัวที่ copy-paste `flowPrefix` computation ซ้ำกันทุกบรรทัด ต่างกันแค่ suffix สุดท้าย ดึงออกเป็น helper รับ parameter:
+
+```typescript
+private getFlowApproveValue(suffix: string): string | undefined {
+  const code = this._taskFormCode || this.taskCode || this.formConfig?.formCode || "";
+  const flowPrefix = code.toLocaleLowerCase().match(/^(flow_\d+)_/)?.[1];
+  if (!flowPrefix) return undefined;
+  return this._formData?.[`${flowPrefix}_${suffix}`];
+}
+
+get task306ApproveValue(): string | undefined {
+  return this.getFlowApproveValue('task_306_approve');
+}
+
+get task006ApproveValue(): string | undefined {
+  return this.getFlowApproveValue('task_006_approve');
+}
+```
+
+ทำให้ pattern นี้ scale ไปอ้างอิง task ก่อนหน้าเพิ่มได้ในอนาคตโดยไม่ต้อง copy logic คำนวณ `flowPrefix` ซ้ำอีก — เพิ่มแค่ getter บรรทัดเดียวต่อ task ที่ต้องการ
+
+**ข้อควรระวังหลัง migrate:** เมื่อสร้าง getter ใหม่แทนตัวแปรเก่า (`approveValue`) ต้องกวาดทุกจุดที่เคยใช้ตัวแปรเก่าให้ครบ — เจอ instance ที่ตกหล่นจริงระหว่าง refactor นี้ ดู [[Approve Value Scoped to Wrong Task]] (Update 2026-07-10)
+
+Source เพิ่มเติม: [[2026-07-10]]

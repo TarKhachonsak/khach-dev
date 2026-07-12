@@ -31,3 +31,23 @@ Source: [[2026-07-03]]
 ฟิลด์ `PHINAI5_SUM_DATE` เดิมมีปัญหาแค่เรื่อง `*ngIf` render (ดูด้านบน) แต่ยังไม่เคยมี validate บังคับกรอกสำหรับ `FLOW_04_TASK_006` เลย — เพิ่ม case ใน `validateAllFormBetweenFlow()`: ถ้า `formValue === "B"` ต้อง fail ถ้าไม่มี `PHINAI5_SUM_DATE` ตอกย้ำหลักการเดิมของ note นี้ (fix root cause ที่ render + validation ให้ตรงกับ business rule ต่อ flow ไม่ใช่ patch เฉพาะจุด) กับ flow ใหม่ที่ share field เดียวกัน
 
 Source เพิ่มเติม: [[2026-07-07]]
+
+## Update 2026-07-10 — เจอ instance ที่ยังไม่ migrate ไปใช้ pattern ใหม่
+
+ระหว่าง refactor `Form06OfficerTaskComponent` (รวม `task306ApproveValue`/`task006ApproveValue` เป็น `getFlowApproveValue(suffix)` เดียว — ดู [[Cross-Task Decision via Dynamic Flow Key]]) เจอจุดที่ template ยังใช้ anti-pattern เดิมค้างอยู่:
+
+```html
+<!-- บรรทัดคู่กันด้านบนใช้ task306ApproveValue ตัดสิน A/ไม่ใช่ A ถูกต้องแล้ว -->
+<div *ngIf="task306ApproveValue === 'A'"> ... </div>
+<div *ngIf="task306ApproveValue !== 'A'"> ... </div>
+
+<!-- แต่ field วันที่คู่กันด้านล่าง ใช้คนละตัวแปร -->
+<dxi-item *ngIf="task306ApproveValue === 'A'"> ... </dxi-item>
+<dxi-item *ngIf="approveValue === 'B'"> ... </dxi-item> <!-- ❌ ควรเป็น task306ApproveValue !== 'A' -->
+```
+
+`approveValue` ของ `Form06OfficerTaskComponent` คือคำตอบของคำถามใน**task ตัวเอง** (307/308) ไม่ใช่ผลจาก task 306 ที่บรรทัดอื่นทั้งหมดในไฟล์เดียวกันใช้ตัดสิน — เป็นจุดตกหล่นตอน migrate ไปใช้ `task306ApproveValue` (น่าจะเกิดจากมี 2 คนแก้ไฟล์เดียวกันคนละช่วงเวลา คนหนึ่งเพิ่ม `task306ApproveValue` แต่ไม่ได้ sweep ทุกจุดที่เคยใช้ `approveValue` ให้ครบ) **ยังไม่ได้แก้ในโค้ดจริง** ณ ตอนบันทึก note นี้ — รอ confirm scope กับผู้ใช้ก่อน
+
+**บทเรียนเพิ่มเติม:** เวลา migrate ตัวแปรจาก anti-pattern ไปเป็น pattern ที่ถูกต้อง ต้อง grep หา**ทุก**การใช้งานตัวแปรเก่า (`approveValue`) ในไฟล์เดียวกันก่อนปิดงาน ไม่ใช่แค่แก้จุดที่ตั้งใจไปแก้ตอนแรก — migration ที่ทำไม่ครบจะทิ้ง inconsistency ที่ดูเหมือนถูกทั้งคู่ (เพราะ compile ผ่าน ไม่ error) แต่ผิด business logic
+
+Source เพิ่มเติม: [[2026-07-10]]

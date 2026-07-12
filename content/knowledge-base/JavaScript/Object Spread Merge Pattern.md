@@ -63,6 +63,19 @@ const merged = { ...a, ...b };
 // merged.x === { z: 2 } — nested x จาก a หายไป!
 ```
 
-Related: [[FormData Overwritten by Double Assignment]], [[Angular Input Object Reference]], [[Array.isArray Guard on Wrong Variable Silently Drops Data]]
+Related: [[FormData Overwritten by Double Assignment]], [[Angular Input Object Reference]], [[Array.isArray Guard on Wrong Variable Silently Drops Data]], [[Duplicated Payload-Building Logic Drifts Out of Sync]]
 
 อ้างอิงจาก: [[2026-07-09]]
+
+## Real Example 2 — spread ทับ field ที่ผ่านการ format แล้วโดยไม่ตั้งใจ
+
+```typescript
+const params = {
+  ...this._formData,   // มี INVESTIGATION_START_TIME ที่ format เป็น "HH:mm" แล้ว
+  ...this._formDataio,  // ข้อมูลจาก source อื่น (formio) — ไม่มี field นี้จริง แต่ scope กว้างเกินจำเป็น
+};
+```
+
+กรณีนี้ไม่ใช่แค่ "ลำดับ spread ผิด" ธรรมดา แต่เป็นอาการของ [[Duplicated Payload-Building Logic Drifts Out of Sync]] — โค้ด build payload ก้อนนี้เป็น copy คู่ขนานของอีกฟังก์ชันหนึ่งที่ format field ถูกต้องอยู่แล้ว แต่ก้อนนี้ไม่เคย sync ตาม เวลา debug ให้เช็คว่ามี "ฟังก์ชันพี่น้อง" ที่ build payload คล้ายกันในไฟล์เดียวกันหรือไม่ ถ้ามีและอันหนึ่งถูก อันหนึ่งผิด นั่นคือสัญญาณของ copy-paste drift ไม่ใช่แค่ spread order เฉย ๆ
+
+อ้างอิงจาก: [[2026-07-10]]
