@@ -1,6 +1,8 @@
-# kh.dev — Knowledge Base
+# khach-dev — Knowledge Base
 
 A static Astro site that turns an Obsidian vault into a browsable knowledge base: Knowledge Base notes, Bug Fixes, Interview Notes (with flashcards), System Design, and Daily Notes. `[[wiki links]]` are converted into real links between notes at build time.
+
+> **คู่มือการใช้งานและ troubleshooting:** [`docs/manual.md`](docs/manual.md)
 
 ## Stack
 
@@ -26,8 +28,10 @@ src/
   pages/              routes: /, /[category], /notes/[slug], /tags/[tag], /interview
 scripts/
   sync-vault.ps1      copies *.md from the Obsidian vault into content/
-  watch-vault.ps1      watches the vault and auto-deploys on changes
-deploy.ps1            sync -> commit -> push (Vercel auto-builds on push)
+  watch-vault.ps1     polls the vault every 5s and auto-deploys on changes (debounced 15s)
+deploy.ps1            git add content/ -> commit -> push (Vercel auto-builds on push)
+docs/
+  manual.md           คู่มือการใช้งาน, คำสั่ง, และ troubleshooting
 ```
 
 ## Setup
@@ -38,7 +42,7 @@ deploy.ps1            sync -> commit -> push (Vercel auto-builds on push)
    npm install
    ```
 
-2. Point the scripts at your Obsidian vault. Set it once per shell session, or add it to your PowerShell profile to persist it:
+2. Point the scripts at your Obsidian vault — set once per shell session, or add to your PowerShell profile:
 
    ```powershell
    $env:OBSIDIAN_VAULT_PATH = "C:\Users\khach\Obsidian Vault\Programming"
@@ -56,7 +60,7 @@ deploy.ps1            sync -> commit -> push (Vercel auto-builds on push)
 npm run dev
 ```
 
-Runs the dev server at `http://localhost:4321`. Re-run `npm run sync` after editing notes in Obsidian to see the changes locally (or use `npm run watch`, see below).
+Runs the dev server at `http://localhost:4321`. Re-run `npm run sync` after editing notes in Obsidian to see changes locally.
 
 ## Build
 
@@ -65,26 +69,63 @@ npm run build
 npm run preview   # preview the production build locally
 ```
 
-## Deploying (Obsidian -> Vercel)
+## Deploying (Obsidian → Vercel)
 
-This repo is meant to be connected to Vercel with auto-deploy on push to `main`.
+This repo is connected to Vercel with auto-deploy on push to `main`.
 
-- **Vercel project settings:** Build Command `npm run build`, Output Directory `dist`, framework preset Astro (see `vercel.json`).
-- **One-shot deploy:** after editing notes in Obsidian, run:
+**Vercel project settings:** Build Command `npm run build`, Output Directory `dist`, framework preset Astro (see `vercel.json`).
 
-  ```powershell
-  .\deploy.ps1
-  ```
+### One-shot deploy
 
-  This syncs `content/` from the vault, commits only if something changed, and pushes to `main`. Vercel picks up the push and rebuilds automatically.
+After editing notes in Obsidian, run:
 
-- **Fully automatic (file watcher):** run this in a background terminal while you work in Obsidian:
+```powershell
+.\deploy.ps1
+```
 
-  ```powershell
-  npm run watch
-  ```
+Syncs `content/` from the vault, commits only if something changed, and pushes to `main`. Vercel picks up the push and rebuilds automatically (~1-2 minutes).
 
-  It watches the vault folders and calls `deploy.ps1` ~10 seconds after the last file change (debounced so multi-file saves batch into one deploy). Keep the terminal open, or register it in Task Scheduler (Program: `powershell`, Arguments: `-ExecutionPolicy Bypass -File <project>\scripts\watch-vault.ps1`, Trigger: at logon) to run it automatically.
+### Fully automatic (file watcher)
+
+The watcher uses **polling** (every 5s) instead of `FileSystemWatcher` events — required because Obsidian writes files atomically (temp file → rename), which .NET `FileSystemWatcher` does not reliably detect on Windows.
+
+Register once in Task Scheduler to run automatically at logon (Run as Administrator):
+
+```powershell
+$action = New-ScheduledTaskAction `
+  -Execute "powershell.exe" `
+  -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"C:\Users\khach\Development\Personal Project\khach-dev\scripts\watch-vault.ps1`" -VaultPath `"C:\Users\khach\Obsidian Vault\Programming`"" `
+  -WorkingDirectory "C:\Users\khach\Development\Personal Project\khach-dev"
+$trigger = New-ScheduledTaskTrigger -AtLogon -User $env:USERNAME
+$settings = New-ScheduledTaskSettingsSet `
+  -ExecutionTimeLimit 0 `
+  -RestartCount 3 `
+  -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask `
+  -TaskName "ObsidianVaultWatcher" `
+  -Action $action `
+  -Trigger $trigger `
+  -Settings $settings `
+  -RunLevel Highest `
+  -Force
+```
+
+Or run manually in a background terminal:
+
+```powershell
+npm run watch
+```
+
+After the watcher is running, the only manual step each day is running `/programming-journal` in Claude Code.
+
+### Daily workflow
+
+1. Work normally in VS Code + Claude Code
+2. At end of day, run in Claude Code:
+   ```
+   /programming-journal
+   ```
+3. Answer the date prompt → Claude writes notes to Obsidian → watcher detects changes → deploys automatically
 
 ## Notes on content
 
