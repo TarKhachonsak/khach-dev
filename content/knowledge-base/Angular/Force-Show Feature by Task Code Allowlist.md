@@ -28,7 +28,7 @@ get showCoordinatePicker(): boolean {
 
 ใช้เมื่อ **ทุก consumer ที่มีอยู่จริง** (เช็คจาก grep การเรียกใช้ selector) ต้องการ behavior เดียวกันหมด — ไม่ต้องมี list ให้ maintain เลย เป็นทางเลือกที่ maintain ง่ายที่สุดถ้า requirement ครอบคลุมทุกที่จริงๆ
 
-**แนวทาง B — Allowlist ต่อ flow code (มาทีหลัง, override ทับ A ในวันที่ 2026-07-10):**
+**แนวทาง B — Allowlist ต่อ flow code (มาทีหลัง, override ทับ A ในวันที่ 2026-07-08 โดย TarKhachonsak เอง — ไม่ใช่เพื่อนร่วมทีมตามที่เข้าใจผิดไว้เดิม):**
 
 ```typescript
 private static readonly FORCE_SHOW_COORDINATE_FLOW_CODES = [
@@ -49,7 +49,7 @@ get showCoordinatePicker(): boolean {
 
 - ถ้า requirement จริงคือ "ทุก consumer ต้องการเหมือนกัน" การเขียน allowlist เป็นการเพิ่ม abstraction ที่ไม่จำเป็น (ผิด "ไม่ต้องออกแบบเผื่ออนาคตที่ยังไม่เกิด")
 - แต่ถ้ามี consumer บางตัวที่ต้องการ behavior ต่างออกไปจริง allowlist คือทางเดียวที่ถูกต้อง — การเขียน `return true` แบบไม่เช็คให้ครบจะไปเปิด feature ผิดที่โดยไม่ตั้งใจ
-- **บทเรียนสำคัญ**: ก่อนเลือกแนวทาง ต้องยืนยัน scope กับผู้ที่รู้ business requirement จริง (ไม่ใช่เดาจาก use case ที่เห็น ณ ตอนนั้น) เพราะสอง flow (07-07 vs 07-10) ตอบคำถามนี้ไม่ตรงกัน ทำให้เกิดการ override ทับกันเป็น churn
+- **บทเรียนสำคัญ**: ก่อนเลือกแนวทาง ต้องยืนยัน scope กับผู้ที่รู้ business requirement จริง (ไม่ใช่เดาจาก use case ที่เห็น ณ ตอนนั้น) เพราะสองการตัดสินใจ (07-07 vs 07-08) ของคนเดียวกันตอบคำถามนี้ไม่ตรงกัน ทำให้เกิดการ override ทับตัวเองเป็น churn ภายใน 1 วัน — สะท้อนว่าตอนตัดสินใจ A ยังไม่ได้ grep/ยืนยัน requirement ให้ครบก่อนเขียนโค้ด
 
 ## Anti-pattern
 
@@ -63,4 +63,4 @@ private static readonly ALLOWED_CODES = [...];
 
 Related: [[Cross-Task Decision via Dynamic Flow Key]], [[Check Recent Commits Before Fixing Shared Component]]
 
-Source: [[2026-07-07]]
+Source: [[2026-07-07]], [[2026-07-08]]
