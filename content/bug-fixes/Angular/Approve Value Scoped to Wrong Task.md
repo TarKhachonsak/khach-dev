@@ -25,3 +25,9 @@
 Related: [[ApproveValue Not Restored After Draft Load]], [[Cross-Task Decision via Dynamic Flow Key]], [[Conditional Validation Pattern]]
 
 Source: [[2026-07-03]]
+
+## Update 2026-07-07 — เพิ่ม validate ให้ flow ใหม่
+
+ฟิลด์ `PHINAI5_SUM_DATE` เดิมมีปัญหาแค่เรื่อง `*ngIf` render (ดูด้านบน) แต่ยังไม่เคยมี validate บังคับกรอกสำหรับ `FLOW_04_TASK_006` เลย — เพิ่ม case ใน `validateAllFormBetweenFlow()`: ถ้า `formValue === "B"` ต้อง fail ถ้าไม่มี `PHINAI5_SUM_DATE` ตอกย้ำหลักการเดิมของ note นี้ (fix root cause ที่ render + validation ให้ตรงกับ business rule ต่อ flow ไม่ใช่ patch เฉพาะจุด) กับ flow ใหม่ที่ share field เดียวกัน
+
+Source เพิ่มเติม: [[2026-07-07]]
