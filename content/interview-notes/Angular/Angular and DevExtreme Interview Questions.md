@@ -264,3 +264,59 @@ Related: [[Array.isArray Guard on Wrong Variable Silently Drops Data]], [[Child 
 **Thai Explanation:** หลักการคือ widget เห็นแค่ "ค่าเปลี่ยน" ไม่รู้ว่าใครเป็นคน set จึงยิง event เดียวกันทุกกรณี ต้องแยก "load phase" ออกจาก "interaction phase" ด้วย flag ของแอปเอง
 
 Related: [[DevExtreme onValueChanged Fires During Programmatic Data Load]], [[DevExtreme dx-form updateData vs Direct Mutation]]
+
+## 27. Mutating state inside a template-bound getter
+
+**English Question:** Why is it dangerous to mutate component state inside a getter that's bound to an Angular template (e.g. `*ngIf="myGetter"`)?
+
+**English Answer:** Angular calls template-bound getters on every change detection cycle, which can fire many times per user action (any event, timer, or async callback anywhere in the app can trigger it) — not just once per intended trigger. A getter that mutates state on each call produces a value that flips unpredictably, uncorrelated with any real user interaction.
+
+**Thai Question:** ทำไมการ mutate state ของ component ข้างใน getter ที่ผูกกับ Angular template (เช่น `*ngIf="myGetter"`) ถึงอันตราย?
+
+**Thai Answer:** Angular เรียก getter ที่ผูกกับ template ทุกรอบ change detection ซึ่งเกิดขึ้นได้หลายครั้งต่อ 1 user action จริง ไม่ใช่แค่ครั้งเดียวตามที่ตั้งใจ ถ้า getter มี side-effect ค่าที่ได้จะเปลี่ยนไปมาแบบไม่มี pattern ที่สัมพันธ์กับ user action จริง
+
+**Thai Explanation:** getter ที่ผูกกับ template ต้อง "pure" เสมอ — เรียกกี่ครั้งก็ต้องได้ผลลัพธ์เดิมถ้าไม่มีอะไรเปลี่ยน ถ้าต้องการ toggle state จริง ๆ ให้ย้าย logic นั้นไปอยู่ใน event handler แทน
+
+Related: [[Getter With Side Effect Breaks Change Detection]]
+
+## 28. `new Date()` silently failing on non-ISO strings
+
+**English Question:** A helper function `formatTimeToHHmm(time)` accepts `Date | string | number`. It returns an empty string for a valid-looking input like `"16:11"`, but works fine for a `Date` object. What's the most likely cause?
+
+**English Answer:** `new Date("16:11")` is not a valid ECMAScript date-time string (no date component), so `new Date()` silently produces an `Invalid Date` rather than throwing — a downstream `isNaN(d.getTime())` check then discards it. This happens when the same field can arrive as either a live `Date` object (from a UI picker) or an already-formatted string (loaded from a backend) — the function needs to detect the already-correct-format case and short-circuit instead of re-parsing it.
+
+**Thai Question:** helper function `formatTimeToHHmm(time)` รับ type `Date | string | number` แต่คืนค่าว่างสำหรับ input ที่ดู valid เช่น `"16:11"` ทั้งที่ทำงานถูกต้องกับ `Date` object ปกติ สาเหตุที่เป็นไปได้มากที่สุดคืออะไร?
+
+**Thai Answer:** `new Date("16:11")` ไม่ใช่รูปแบบ date-time string ที่ ECMAScript รองรับ (ไม่มีส่วนวันที่) จึงได้ `Invalid Date` แบบเงียบ ๆ ไม่ throw error แล้วถูกเช็ค `isNaN(d.getTime())` ทิ้งไป เกิดขึ้นเมื่อฟิลด์เดียวกันมาได้สองแบบ (จาก UI picker เป็น `Date` object สด ๆ หรือจาก backend ที่ format เป็น string ไว้แล้ว) — function ต้องเช็คกรณี "format ถูกอยู่แล้ว" แล้ว short-circuit แทนที่จะ parse ซ้ำ
+
+**Thai Explanation:** `new Date()` เป็นฟังก์ชันที่ fail แบบเงียบ ไม่มี exception ให้เห็น ต่างจากภาษาอื่นที่มักจะ throw — ต้องเช็ค `isNaN(d.getTime())` เองเสมอเมื่อ parse จาก string ที่ไม่รู้แหล่งที่มาแน่ชัด
+
+Related: [[new Date() Returns Invalid Date for Non-ISO Time Strings]]
+
+## 29. Compile error vs silent undefined for the same class of missing wiring
+
+**English Question:** Two bugs share the same root cause — a property referenced across `.ts` and `.html` was never fully wired up — but one causes a TypeScript compile error while the other silently returns `undefined` at runtime with no error at all. What determines which outcome you get?
+
+**English Answer:** Whether the property was declared as a class member at all. If it's referenced but never declared, TypeScript flags "Property does not exist on type" at compile time. If it *was* declared (even with no default value or assignment), the reference is valid to the type checker — the value is just `undefined` at runtime, which is legal for most types unless strict initialization is enforced, so nothing errors until logic depends on it holding real data.
+
+**Thai Question:** บั๊กสองแบบมี root cause เดียวกัน (ตัวแปรที่อ้างถึงทั้งใน `.ts`/`.html` แต่ต่อสายไม่ครบ) แต่แบบหนึ่ง compile error ทันที ส่วนอีกแบบเงียบเป็น `undefined` ตอน runtime อะไรกำหนดผลลัพธ์?
+
+**Thai Answer:** อยู่ที่ตัวแปรถูก declare เป็น class member หรือไม่ ถ้าอ้างถึงแต่ไม่เคย declare เลย TypeScript error ทันทีตอน compile ถ้า declare ไว้แล้ว (แม้ไม่เคย assign) type checker ถือว่าถูกต้อง ค่าจะเป็น `undefined` เฉย ๆ ตอน runtime โดยไม่มี error จนกว่าจะมี logic ที่ต้องพึ่งค่าจริง
+
+**Thai Explanation:** compiler ตรวจจับ "ไม่มีตัวตน" ได้ทันที แต่ตรวจจับ "มีตัวตนแต่ว่างเปล่า" ไม่ได้เลย ต้องอาศัยการ grep/review เอง
+
+Related: [[Property Used but Never Declared]], [[Declared but Unassigned State]]
+
+## 30. Duplicated payload-building logic drifting out of sync
+
+**English Question:** A time-formatting bugfix was applied to one function that builds an API request payload. Weeks later, the same "already-fixed" bug reappears — but only through a *different* button that internally calls a second, separate function building a structurally similar payload. What's the underlying design flaw, and what's the durable fix?
+
+**English Answer:** The two functions are copy-pasted duplicates that build conceptually the same payload but drifted out of sync — the earlier fix only touched one copy. Patching the second copy to match resolves this instance but not the next drift. The durable fix is extracting the shared payload-building logic into one method both call sites invoke, so any future fix only needs to happen once.
+
+**Thai Question:** บั๊กเรื่อง format เวลาถูกแก้ไปแล้วในฟังก์ชันหนึ่งที่ build payload ส่งไป API แต่อีกไม่กี่สัปดาห์ต่อมา บั๊กที่ "เคยแก้แล้ว" กลับมาอีกผ่านปุ่มอีกปุ่มที่เรียกอีกฟังก์ชันที่ build payload คล้ายกันแยกต่างหาก ปัญหาการออกแบบที่แท้จริงคืออะไร แล้วทางแก้ที่ยั่งยืนคืออะไร?
+
+**Thai Answer:** สองฟังก์ชันเป็น copy-paste ที่ build payload ความหมายเดียวกันแต่ drift ออกจากกันเพราะ fix ครั้งก่อนแตะแค่ก้อนเดียว การไปแก้ก้อนที่สองให้ตรงกันแค่แก้ปัญหาเฉพาะหน้า ทางแก้ที่ยั่งยืนคือดึง logic build payload ออกมาเป็น method เดียวที่ทั้งสองจุดเรียกใช้ร่วมกัน
+
+**Thai Explanation:** สัญญาณเตือนคือเห็น object literal โครงสร้างคล้ายกันมากซ้ำในไฟล์เดียวกันหลายจุด — นั่นคือ DRY violation ที่รอวันสร้างบั๊กแบบนี้
+
+Related: [[Duplicated Payload-Building Logic Drifts Out of Sync]]
