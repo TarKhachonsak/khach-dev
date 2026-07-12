@@ -222,3 +222,45 @@ Related: [[Service Endpoint Mismatch Blocks Field From Persisting]]
 **Thai Explanation:** เช็ค `git log` ของไฟล์ก่อนแก้ shared component เสมอ แล้วอ่าน commit ที่เกี่ยวข้องก่อนออกแบบ fix ใหม่ — git ตรวจจับ conflict แค่ระดับบรรทัดข้อความเท่านั้น ถ้าสอง commit แก้ logic เดียวกันคนละแนวทางแต่ไม่ชนกันตรงบรรทัด (หรือมาแทนที่กันคนละวัน) git จะ merge ผ่านเงียบๆ โดยไม่เตือนอะไรเลย ต้องอาศัยนิสัยของคน (เช็ค log, คุยกับทีมก่อนแก้) มาปิดช่องว่างนี้แทน
 
 Related: [[Check Recent Commits Before Fixing Shared Component]]
+
+## 24. One-time `@Input()` binding treated as a live value
+
+**English Question:** A component receives data via `@Input()` bound to a third-party widget's one-time submission property (e.g. `[submission]="formioSubmission"`). The widget also emits a `(change)` event into a separate tracked field. Why is building a save payload from the `@Input()` wrong, and how do you find this bug?
+
+**English Answer:** A one-time `[prop]="value"` binding only reflects the value at the moment the widget was initialized — Angular doesn't magically keep it "current" unless something explicitly reassigns it every time the underlying data changes. If nothing reassigns the `@Input()` field after init, it is a frozen snapshot forever, while the field populated by the `(change)` event handler holds the real current value. Find it by grepping every assignment (`this.field =`) to the `@Input()` field across the file — if the only occurrence is the `@Input()` decorator itself, it's proven stale.
+
+**Thai Question:** component รับข้อมูลผ่าน `@Input()` ที่ bind กับ property แบบ one-time ของ third-party widget (เช่น `[submission]="formioSubmission"`) และ widget เดียวกันก็ยิง `(change)` event เข้า field อีกตัวที่ track ค่าล่าสุดแยกไว้ ทำไม build payload จาก `@Input()` ถึงผิด แล้วหา bug นี้ยังไง?
+
+**Thai Answer:** binding แบบ one-time (`[prop]="value"`) สะท้อนแค่ค่า ณ ตอน widget ถูก init เท่านั้น Angular ไม่ได้ทำให้มัน "ล่าสุดเสมอ" อัตโนมัติ เว้นแต่มีโค้ด reassign มันทุกครั้งที่ข้อมูลเปลี่ยน ถ้าไม่มีใคร reassign `@Input()` field นี้เลยหลัง init มันจะเป็นค่านิ่งตลอดไป ส่วน field ที่ `(change)` event handler set ให้ต่างหากที่มีค่าจริงล่าสุด หา bug ได้โดย grep หาทุกจุด assignment (`this.field =`) ของ `@Input()` field นั้นทั้งไฟล์ ถ้าเจอแค่ตรง decorator ก็ยืนยันได้ว่ามันเป็นค่านิ่ง
+
+**Thai Explanation:** บั๊กนี้ต่างจาก reference-sharing ปกติของ `@Input()` object (ที่ mutate แล้ว parent เห็นด้วย) เพราะ field ตัวนี้ไม่มีใครแตะเลยหลัง init — ปัญหาไม่ใช่เรื่อง reference แต่เรื่องไม่มี assignment เกิดขึ้นอีกเลย
+
+Related: [[Stale Input Snapshot vs Live Change-Tracked State]], [[Angular Input Object Reference]]
+
+## 25. `Array.isArray()` guard checking the wrong sibling variable
+
+**English Question:** A ternary `Array.isArray(x) ? [...x] : []` always evaluates to the empty-array branch, silently dropping real data from a form submission, with zero compile or runtime errors. How is this possible, and how do you debug it?
+
+**English Answer:** It's possible when `x` is typed `any` and is assigned a plain object literal everywhere in the code — `Array.isArray()` on an object always returns `false`, so the "safe" empty-array fallback is chosen every single time regardless of what data actually exists. This is a variable-identity bug, not a logic bug: the developer likely meant to reference a similarly-named sibling variable that actually holds an array. Debug by grepping every assignment site of the checked variable (not just its usage) and comparing its declared/assigned type against what the condition assumes.
+
+**Thai Question:** เจอ ternary แบบ `Array.isArray(x) ? [...x] : []` ที่ branch array ว่างถูกเลือกทุกครั้ง ทำให้ข้อมูลจริงหายไปจาก submission เงียบๆ โดยไม่มี compile error หรือ runtime error เลย เป็นไปได้ยังไง แล้วจะ debug ยังไง?
+
+**Thai Answer:** เป็นไปได้เมื่อ `x` เป็น type `any` และถูก assign เป็น plain object literal ทุกจุดในโค้ด — `Array.isArray()` บน object จะคืน `false` เสมอ จึงเลือก fallback array ว่างทุกครั้งไม่ว่าข้อมูลจริงจะมีอะไร นี่คือบั๊กเรื่องอ้างตัวแปรผิดตัว ไม่ใช่ logic ผิด — ผู้เขียนน่าจะตั้งใจอ้างตัวแปรพี่น้องที่ชื่อคล้ายกันซึ่งเป็น array จริงๆ debug โดย grep หาทุกจุด assignment ของตัวแปรที่ถูกเช็ค (ไม่ใช่แค่จุดใช้งาน) แล้วเทียบ type ที่ assign จริงกับที่ condition คาดหวัง
+
+**Thai Explanation:** `any` type คือตัวการที่ทำให้ TypeScript ไม่ช่วย catch บั๊กนี้ตอน compile — ถ้าตัวแปรมี type ที่เจาะจงกว่านี้ (เช่น `any[]` vs เป็น interface เฉพาะ) compiler จะ error ทันทีตอน assign object ให้ตัวแปรที่ควรเป็น array
+
+Related: [[Array.isArray Guard on Wrong Variable Silently Drops Data]], [[Child Array Not Synced to Parent on Save]]
+
+## 26. `readOnly` field's `onValueChanged` firing during data load
+
+**English Question:** A DevExtreme form field is `readOnly: true` and has an `onValueChanged` callback that recalculates other fields. When you programmatically assign that field's value from backend data during `ngOnInit`, the callback fires and overwrites the correct backend values with a recalculated (wrong) result. Why does `readOnly` not prevent this, and what's the fix?
+
+**English Answer:** `readOnly` only disables user keyboard/mouse interaction with the rendered widget — it has no effect on the widget's internal change-detection pipeline, which fires `onValueChanged` any time the bound `formData` property is set, regardless of who or what set it (user typing or a plain JS assignment in component code). The fix is an explicit guard flag set `true` for the duration of the data-load phase and checked at the top of the callback, so load-time assignments are distinguished from genuine user-driven changes — `readOnly`/`disabled` attributes are not a substitute for this.
+
+**Thai Question:** field ของ DevExtreme form ตั้ง `readOnly: true` ไว้ และมี `onValueChanged` callback ที่คำนวณ field อื่นใหม่ พอเขียนโค้ด set ค่า field นี้จาก backend ตอน `ngOnInit` callback ก็ยังยิงและไปทับค่าจริงจาก backend ด้วยผลคำนวณที่ผิด ทำไม `readOnly` ถึงป้องกันไม่ได้ แล้วแก้ยังไง?
+
+**Thai Answer:** `readOnly` ปิดแค่การโต้ตอบของ user (พิมพ์/คลิก) กับ widget ที่ render ออกมาเท่านั้น ไม่มีผลกับ change-detection pipeline ภายในของ widget ซึ่งยิง `onValueChanged` ทุกครั้งที่ property ใน `formData` ที่ผูกไว้ถูก set ไม่ว่าจะมาจาก user พิมพ์หรือโค้ด assign ตรงๆ ก็ตาม วิธีแก้คือเพิ่ม guard flag ที่ set เป็น `true` ตลอดช่วงโหลดข้อมูล แล้วเช็คที่ต้น callback เพื่อแยกการ set ค่าตอนโหลดออกจากการเปลี่ยนแปลงจริงจาก user — attribute อย่าง `readOnly`/`disabled` ใช้แทนกันไม่ได้
+
+**Thai Explanation:** หลักการคือ widget เห็นแค่ "ค่าเปลี่ยน" ไม่รู้ว่าใครเป็นคน set จึงยิง event เดียวกันทุกกรณี ต้องแยก "load phase" ออกจาก "interaction phase" ด้วย flag ของแอปเอง
+
+Related: [[DevExtreme onValueChanged Fires During Programmatic Data Load]], [[DevExtreme dx-form updateData vs Direct Mutation]]
