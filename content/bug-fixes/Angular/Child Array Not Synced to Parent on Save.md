@@ -60,4 +60,4 @@ this._dsROD_FIR_TXN_OFFICERS_FORM_GROUP.push({ ...newItem }); // mutate in-place
 > ข้อมูลที่ parent เป็น source of truth → parent ต้องส่ง reference ให้ child  
 > Child ไม่ควรสร้าง local copy ของ data ที่ต้อง sync กับ parent
 
-Related: [[Angular Input Object Reference]]
+Related: [[Angular Input Object Reference]], [[Array.isArray Guard on Wrong Variable Silently Drops Data]]
