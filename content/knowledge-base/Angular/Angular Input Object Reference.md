@@ -38,6 +38,36 @@ private setDefaultRole() {
 
 **Symptom:** field ที่ user กรอกใน child form ถูก save เป็น 0 หรือ null
 
+## ⚠️ Anti-Pattern: ใช้ `@Input()` ที่ bind ครั้งเดียวเป็นค่า "ล่าสุด"
+
+```typescript
+// Template: bind ครั้งเดียวตอน component init เท่านั้น
+// <formio [submission]="formioSubmission" (change)="onFieldChange($event)"></formio>
+
+@Input() formioSubmission: any;   // ไม่เคยถูก reassign ที่ไหนในไฟล์เลย
+_formDataio: any;                 // ค่าจริงที่ user แก้ไข อัปเดตผ่าน event
+
+onFieldChange(event: any) {
+  this._formDataio = { ...event.data };   // ค่าล่าสุดอยู่ตรงนี้
+}
+
+// ❌ Bug: ใช้ @Input() (stale snapshot) แทนค่าที่ user แก้จริง
+const params = {
+  formioForm: this.formioSubmission,   // ค่านิ่งตั้งแต่ตอน init
+};
+
+// ✅ Fix: ใช้ field ที่อัปเดตผ่าน event แทน
+const params = {
+  ...this._formDataio,
+};
+```
+
+**Symptom:** ข้อมูลที่ user แก้ไขใน sub-form (formio/child widget) หายไปตอน save แม้ UI แสดงค่าถูกต้อง เพราะ payload อ่านจาก `@Input()` ที่ไม่มีใคร reassign แทนที่จะอ่านจาก field ที่ event handler อัปเดตอยู่จริง
+
+**วิธีเช็ค:** grep หาทุกจุด assignment (`this.xxx =`) ของ `@Input()` ตัวนั้นในไฟล์ ถ้าไม่เจอเลยนอกจาก decorator แปลว่ามันเป็นค่านิ่งตลอด lifetime ของ component — ห้ามใช้เป็น source of truth ของ "ค่าปัจจุบัน"
+
+Related: [[Stale Input Snapshot vs Live Change-Tracked State]]
+
 ## เมื่อไหรควรใช้ Spread (New Ref)
 
 | สถานการณ์ | วิธีที่ควรใช้ |
@@ -66,4 +96,6 @@ Reference sharing เป็นเครื่องมือได้ถ้า c
 
 **Thai Explanation:** `@Input()` ไม่ได้ clone object ให้อัตโนมัติ ถ้า child แก้ property ของ object เดิม parent จึงเห็นค่าเปลี่ยนตามไปด้วย
 
-Related: [[DevExtreme Callback Context]], [[Restore UI State After Load Data]], [[Over-Mapping All Fields to TEMP Suffix]]
+Related: [[DevExtreme Callback Context]], [[Restore UI State After Load Data]], [[Over-Mapping All Fields to TEMP Suffix]], [[Stale Input Snapshot vs Live Change-Tracked State]]
+
+อ้างอิงจาก: [[2026-07-09]]
