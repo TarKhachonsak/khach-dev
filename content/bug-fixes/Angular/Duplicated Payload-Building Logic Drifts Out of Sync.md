@@ -57,6 +57,12 @@ Sentflow() {
 
 **Thai Explanation:** สัญญาณเตือนที่ควรจับได้ตั้งแต่ตอน code review คือเห็น object literal โครงสร้างคล้ายกันมาก (`{ ...this._formData, field1, field2, ... }`) ซ้ำกันในไฟล์เดียวกันหลายจุด — นั่นคือ "DRY violation" ที่รอวันสร้างบั๊กแบบนี้อยู่แล้ว
 
+## Applied In Practice (2026-07-13)
+
+Pattern เดียวกันเจอซ้ำใน `form-131-officer-task.component.ts` (คนละ component จาก 2026-07-10 แต่โครงสร้างปัญหาเหมือนกันเป๊ะ): `onSave()` build `params` inline เฉพาะ branch SD ส่วน branch AP เรียก `Sentflow()` ที่ build `submission` แยกก้อนของตัวเอง ไม่มี `action`/`TASK_CODE`/`TASK_APPROVE`/`backendId` ติดไปด้วย
+
+รอบนี้ implement "ทางแก้ระยะยาว" ที่แนะนำไว้ด้านบนจริง: ดึงออกเป็น `_buildParams(action: string)` ตัวเดียว ให้ `onSaveDraft` (SD) และ `Sentflow` (AP) เรียกใช้ร่วมกัน — ยืนยันว่า pattern นี้ recur ได้จริงข้าม component ต่างกัน (ไม่ใช่แค่ทฤษฎี) และการแก้แบบ shared method ใช้เวลาพอๆ กับแก้แบบ sync สองจุด แต่ปิดความเสี่ยง drift ในอนาคตได้ถาวรกว่า
+
 Related: [[Object Spread Merge Pattern]], [[FormData Overwritten by Double Assignment]]
 
-Source: [[2026-07-10]]
+Source: [[2026-07-10]], [[2026-07-13]]

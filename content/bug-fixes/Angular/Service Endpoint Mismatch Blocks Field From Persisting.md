@@ -24,6 +24,10 @@ FE ไม่ได้เป็นจุดที่ทำค่าหาย: gre
 
 อาการ "ค่าส่งออกไปได้แต่ไม่ persist" มีสาเหตุที่เป็นไปได้อย่างน้อย 3 ชั้น: (1) FE ไม่ได้ใส่ค่าจริง (2) FE ใส่ค่าถูกแต่ยิงผิด endpoint/service (3) endpoint ถูกแล้วแต่ backend DTO ไม่ map field — ต้องแยกให้ออกทีละชั้นด้วยการตรวจโค้ดจริง ไม่ใช่เดาข้ามไปที่ backend ทันที
 
-Related: [[Approve Value Scoped to Wrong Task]], [[Force-Show Feature by Task Code Allowlist]]
+## Recurrence (2026-07-13)
 
-Source: [[2026-07-07]]
+เจอ shape เดียวกันอีกครั้งใน `form-131-officer-task.component.ts`: กด "บันทึกร่าง" (SD, ยิงไป `FormInspectionSummaryService.Updateform`) field `action` บันทึกได้ปกติ แต่กด "ยืนยันส่งขั้นตอนถัดไป" (AP, ยิงไป endpoint ที่ resolve แบบ dynamic จาก `formConfig.apiSubmit` ผ่าน `FlowService.sentFlow()`) ยืนยันจาก Network tab แล้วว่า field `action` ถูกส่งไปใน request body ถูกต้อง (response 200 กลับมาด้วย) แต่คาดว่าฝั่ง backend ของ endpoint `complete` ไม่ map field นี้ลง table `base` — ยังไม่ได้ confirm code backend จริง (อยู่นอก repo frontend) แต่ debug order เดียวกับโน้ตนี้ (grep FE ก่อน แล้วดู endpoint ก่อนสงสัย backend DTO) ใช้ตัดปัญหาฝั่ง FE ออกได้เร็วเหมือนเดิม
+
+Related: [[Approve Value Scoped to Wrong Task]], [[Force-Show Feature by Task Code Allowlist]], [[Debugging Backend Breakpoint Not Hit Checklist]]
+
+Source: [[2026-07-07]], [[2026-07-13]]

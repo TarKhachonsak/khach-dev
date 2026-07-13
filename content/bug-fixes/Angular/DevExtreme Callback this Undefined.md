@@ -20,4 +20,22 @@ onValueChanged = (e: any) => {
 
 ใช้ arrow function สำหรับ DevExtreme callback ที่ต้องอ้างถึง component instance
 
-Related: [[DevExtreme Callback Context]]
+## Alternative Fix: `.bind(this)` ที่จุดอ้างอิง (2026-07-13)
+
+ถ้ามีเหตุผลที่ต้องใช้ regular method แทน arrow-function class property (เช่นโค้ดเดิมออกแบบไว้แบบนั้นแล้ว ไม่อยากเปลี่ยน signature) ยังแก้ปัญหาเดียวกันได้ด้วยการ `.bind(this)` ตรงจุดที่ส่ง reference เข้า `editorOptions`:
+
+```typescript
+// component: regular method (ไม่ auto-bind)
+onExtensionDayChanged(e: any) { this._formData.EXTENSION_AMOUNT_DAY = ...; }
+```
+
+```html
+<!-- template: ต้อง bind เอง ไม่งั้น this จะไม่ใช่ component -->
+[editorOptions]="{ onValueChanged: onExtensionDayChanged.bind(this) }"
+```
+
+หลักการเดียวกับ arrow function — แค่ผูก `this` คนละจุด (arrow function ผูกตอน declare, `.bind(this)` ผูกตอนส่ง reference) ถ้าลืม `.bind(this)` ตรงนี้จะเจอบั๊กแบบเดียวกับโน้ตนี้ทันที
+
+Related: [[DevExtreme Callback Context]], [[Function Reference Without Parentheses]]
+
+Source: [[2026-07-13]]
