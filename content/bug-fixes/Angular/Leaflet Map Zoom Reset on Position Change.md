@@ -72,3 +72,53 @@ Related: [[Angular Lifecycle Hooks — @ViewChild Timing]], [[Angular Input Obje
 **บทเรียนเพิ่มเติม:** เมื่อ child component ออกแบบ public method เป็น "toggle" (ไม่ใช่ "set true/false ตรง ๆ") parent ที่เรียก method นี้จากมากกว่า 1 lifecycle hook มีความเสี่ยงสูงที่จะเรียกซ้ำโดยไม่ตั้งใจ เพราะนับจำนวนครั้งที่ถูกเรียกได้ยากเมื่อ hook หลายตัวทำงานใกล้กัน — ถ้าเป็นไปได้ควรออกแบบ public API ของ child เป็น `show()`/`hide()` แยกกัน (idempotent) แทน toggle เดียว เพื่อไม่ให้จำนวนครั้งที่เรียกมีผลต่อ state สุดท้าย
 
 Source เพิ่มเติม: [[2026-07-10]]
+
+## Update 2026-07-14 — NG0100 + "Map container not found" ตอนแผนที่ auto-show ครั้งแรก
+
+พบว่าคำเตือนใน update ก่อนหน้าเป็นจริง: bug เดิมยังไม่หมด เจอ error ใหม่ตอนแผนที่ auto-show ครั้งแรก (ไม่ใช่แค่ตอน parent เรียกซ้ำ):
+
+```
+ERROR Error: NG0100: ExpressionChangedAfterItHasBeenCheckedError.
+  Previous value: 'false'. Current value: 'true'.
+  Expression location: LeafletMapOverviewComponent
+
+ERROR Error: Uncaught (in promise): Error: Map container not found.
+  _initContainer → initialize → createMap → showMap → ngAfterViewInit
+```
+
+**Root cause:** `showMap()` ของ `LeafletMapOverviewComponent` เอง (ไม่ใช่แค่ parent) toggle `this.isMapVisible` **ข้างใน `ngAfterViewInit()`** — ซึ่งเป็น lifecycle hook ที่ทำงาน **หลัง** Angular check binding ของ view รอบนั้นเสร็จไปแล้ว การ mutate ค่าที่ผูกกับ `*ngIf="isMapVisible"` ในเทมเพลตของตัวเองตอนนี้จึงโดน NG0100 เตือนทันที และที่ร้ายแรงกว่านั้นคือ `*ngIf` จะไม่ re-render จนกว่าจะถึงรอบ change detection ถัดไป — แต่โค้ดที่ตามมา (`L.map('map')` ผ่าน `setTimeout(0)`) รันไปก่อนที่ div จะถูกแทรกเข้า DOM จริง เพราะ zone.js จะ trigger CD หลัง macrotask จบเท่านั้น ทำให้ `document.getElementById('map')` (ที่ Leaflet ใช้ภายในเมื่อรับ string id) คืนค่า null → throw `Map container not found`
+
+**Fix ที่ 1 (ยังไม่พอ):** ลบ internal `isMapVisible` toggle และ `*ngIf="isMapVisible"` ออกจาก template ของ leaflet component เอง (ให้ parent คุม visibility ของทั้ง component ชั้นเดียวพอ ไม่ double-gate) แล้วทำ `showMap()` เป็น idempotent (`if (this.map) return;`) — แก้ NG0100 ได้ แต่ "Map container not found" ยังพังอยู่เหมือนเดิม เพราะสาเหตุจริงลึกกว่านั้น
+
+**Fix ที่ 2 (ตัวที่แก้จริง):** เปลี่ยนวิธีอ้างอิง container จาก string id ทั้งหมด (`L.map('map')`, `L.DomUtil.get('map')`) เป็น:
+
+```typescript
+@ViewChild('mapContainer', { static: true }) mapContainerRef!: ElementRef<HTMLDivElement>;
+
+async showMap() {
+    if (this.map) return;
+    // ...
+    this.map = L.map(this.mapContainerRef.nativeElement).setView([lat, lng], 13);
+}
+```
+
+```html
+<div id="map" #mapContainer></div>
+```
+
+`{ static: true }` การันตีว่า `mapContainerRef` พร้อมใช้ตั้งแต่ก่อน `ngOnInit` (ดู [[Angular Lifecycle Hooks — @ViewChild Timing]]) เพราะ element ไม่มี structural directive ครอบตัวเองอีกแล้ว — ตัด dependency กับ `document.getElementById` และ timing ของ change detection ออกไปทั้งหมด
+
+**บทเรียนสำคัญที่สุดของรอบนี้ — Blast radius ของ shared component:** พอไล่ grep หาทุกจุดที่เรียก `showMap()` ทั่ว repo พบว่า component นี้ถูกใช้ร่วมกันในฟอร์ม officer-task อื่นอีก **~25 ไฟล์** ทุกไฟล์มี pattern เดียวกัน:
+
+```typescript
+onToggleMap(mapComponent: any) {
+    this._isMapVisible = !this._isMapVisible;
+    mapComponent.showMap();
+}
+```
+
+การทำให้ `showMap()` เป็น idempotent (ตาม "บทเรียนเพิ่มเติม" ของ update ก่อนหน้าที่แนะนำไว้เอง) แก้ race condition ได้จริง แต่ก็ทำให้ **ทุกฟอร์มที่ใช้ปุ่ม toggle map แบบนี้เสียความสามารถ "กดซ้ำเพื่อซ่อนแผนที่" ไปพร้อมกันหมด** เพราะ `showMap()` ไม่ toggle อีกต่อไป — เป็น regression ที่ยังไม่ได้แก้ ณ ตอนบันทึกนี้ (รอตัดสินใจว่าจะจำกัด scope fix ไว้แค่ caller เดียว หรือทำ `show()`/`hide()` แบบ idempotent ทั้งคู่ให้ backward-compatible กับทุก consumer)
+
+Related: [[Check Recent Commits Before Fixing Shared Component]]
+
+Source เพิ่มเติม: [[2026-07-14]]
