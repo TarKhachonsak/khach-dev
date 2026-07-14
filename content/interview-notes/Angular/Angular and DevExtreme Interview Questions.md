@@ -320,3 +320,59 @@ Related: [[Property Used but Never Declared]], [[Declared but Unassigned State]]
 **Thai Explanation:** สัญญาณเตือนคือเห็น object literal โครงสร้างคล้ายกันมากซ้ำในไฟล์เดียวกันหลายจุด — นั่นคือ DRY violation ที่รอวันสร้างบั๊กแบบนี้
 
 Related: [[Duplicated Payload-Building Logic Drifts Out of Sync]]
+
+## 31. NG0100 from mutating a template-bound flag inside `ngAfterViewInit`
+
+**English Question:** A component sets `this.isVisible = true` inside `ngAfterViewInit()`, and that same flag drives `*ngIf` in its own template. Angular throws `NG0100: ExpressionChangedAfterItHasBeenCheckedError` in dev mode, and worse, code that runs synchronously afterward can't find a DOM element the flag was supposed to reveal. Why?
+
+**English Answer:** `ngAfterViewInit` fires after Angular has already run change detection and checked the view's bindings for this cycle. Mutating a template-bound value inside it changes something Angular already "signed off on" this pass — that's exactly what NG0100 flags. The `*ngIf` won't re-evaluate until the next change detection pass, which for a synchronous flip (or even a `setTimeout(0)` scheduled within the same task) may not happen before subsequent code runs — so a DOM query for the element that `*ngIf` was supposed to reveal can fail because it hasn't been inserted yet.
+
+**Thai Question:** component set `this.isVisible = true` ข้างใน `ngAfterViewInit()` และ flag ตัวเดียวกันนี้ควบคุม `*ngIf` ในเทมเพลตของตัวเอง Angular throw `NG0100: ExpressionChangedAfterItHasBeenCheckedError` ตอน dev mode แถมโค้ดที่รันต่อจากนั้นแบบ synchronous ก็หา DOM element ที่ flag นี้ควรจะทำให้โผล่มาไม่เจอด้วย ทำไมถึงเป็นแบบนี้?
+
+**Thai Answer:** `ngAfterViewInit` ทำงานหลังจาก Angular check binding ของ view รอบนี้เสร็จไปแล้ว การไป mutate ค่าที่ผูกกับ template ข้างในจึงเป็นการเปลี่ยนสิ่งที่ Angular "เซ็นรับรอง" ไปแล้วในรอบเดียวกัน นั่นคือสิ่งที่ NG0100 เตือน ส่วน `*ngIf` จะไม่ re-evaluate จนกว่าจะถึงรอบ change detection ถัดไป ซึ่งถ้าเป็นการ flip แบบ synchronous หรือแม้แต่ `setTimeout(0)` ที่ตั้งไว้ใน task เดียวกัน ก็อาจไม่ทันเกิดก่อนโค้ดถัดไปจะรัน ทำให้ query หา element ที่ `*ngIf` ควรจะสร้างไม่เจอ
+
+**Thai Explanation:** ทางแก้คือย้ายค่าที่ควบคุม visibility ไปตั้งใน lifecycle hook ที่ทำงานก่อนวิว check (เช่น `ngOnChanges`/`ngOnInit`) แทน หรือถ้าเลี่ยงไม่ได้ ให้เอา `*ngIf` ออกจาก element ที่จำเป็นต้องมีอยู่แน่นอน (ให้ parent ควบคุม visibility แทนในชั้นที่สูงกว่า)
+
+Related: [[Leaflet Map Zoom Reset on Position Change]]
+
+## 32. `@ViewChild({ static: true })` vs default (`static: false`)
+
+**English Question:** You need to pass a native DOM element into a third-party JS library (e.g. Leaflet's `L.map(element)`) as early as possible, but the default `@ViewChild` behavior only resolves in `ngAfterViewInit`. How do you get it earlier, and what's the tradeoff?
+
+**English Answer:** Set `{ static: true }` on the `@ViewChild` decorator — this resolves the reference during the first change detection pass, available as early as `ngOnInit`, because Angular guarantees it for elements that are NOT behind a structural directive (`*ngIf`/`*ngFor`) on themselves. The tradeoff: the target element must be unconditionally present in the template — if it's wrapped in its own `*ngIf`, `static: true` can't help, since the element may not exist at all in that pass.
+
+**Thai Question:** ต้องส่ง native DOM element เข้า third-party JS library (เช่น Leaflet `L.map(element)`) ให้เร็วที่สุด แต่ `@ViewChild` แบบ default resolve แค่ตอน `ngAfterViewInit` เท่านั้น จะเอาให้เร็วขึ้นได้ยังไง แล้วต้องแลกกับอะไร?
+
+**Thai Answer:** ใส่ `{ static: true }` ใน `@ViewChild` decorator จะ resolve ตั้งแต่รอบ change detection แรก ใช้ได้ตั้งแต่ `ngOnInit` เพราะ Angular การันตีให้กับ element ที่ไม่ได้อยู่หลัง structural directive (`*ngIf`/`*ngFor`) บนตัวมันเอง ข้อแลกคือ element เป้าหมายต้อง render อยู่เสมอไม่มีเงื่อนไข ถ้ามี `*ngIf` ครอบตัวมันเอง `static: true` ช่วยไม่ได้เพราะ element อาจไม่มีอยู่เลยในรอบนั้น
+
+**Thai Explanation:** กฎง่ายๆ คือ ถ้า element ที่ query ไม่เคยถูกซ่อนด้วยเงื่อนไขของตัวเอง ใช้ `static: true` ได้ปลอดภัยและใช้งานได้เร็วกว่า แต่ถ้า element อาจถูกซ่อน/แสดงแบบมีเงื่อนไข ต้องใช้ `static: false` (default) แล้วรอ `ngAfterViewInit`
+
+Related: [[Angular Lifecycle Hooks — @ViewChild Timing]]
+
+## 33. Changing a shared component's toggle-style public API
+
+**English Question:** A shared Angular component's `showMap()` method is called by ~25 different parent forms via an identical `onToggleMap() { flag = !flag; child.showMap(); }` pattern, relying on `showMap()` to toggle create/destroy each call. You fix an unrelated race-condition bug in `showMap()` by making it idempotent (`if (this.map) return;`) so it only ever creates, never destroys. What did you just break, and how would you have caught it before shipping?
+
+**English Answer:** Every one of those ~25 callers loses the ability to hide the map on a second click — their toggle button still flips their own local flag, but the child no longer reacts to it (`showMap()` is now a no-op once the map exists). This is a silent regression across all consumers, discoverable only by grepping every call site of the method being changed (`showMap()`) and every template usage of the component's selector *before* changing its contract — not just the one caller that reported the bug.
+
+**Thai Question:** shared component ตัวหนึ่งมี method `showMap()` ที่ถูกเรียกจาก parent form ประมาณ 25 ไฟล์ ผ่าน pattern เดียวกันคือ `onToggleMap() { flag = !flag; child.showMap(); }` ซึ่งพึ่งพาว่า `showMap()` จะ toggle สร้าง/ทำลายทุกครั้งที่เรียก แล้วมีคนแก้บั๊ก race condition ที่ไม่เกี่ยวกันใน `showMap()` โดยทำให้มันเป็น idempotent (`if (this.map) return;`) จนสร้างได้อย่างเดียว ไม่ทำลายอีกต่อไป พังอะไรไปบ้าง แล้วจะจับได้ยังไงก่อน ship?
+
+**Thai Answer:** caller ทั้ง 25 ไฟล์เสียความสามารถ "ซ่อนแผนที่เมื่อกดปุ่มซ้ำ" ไปหมด เพราะปุ่ม toggle ของแต่ละที่ยังคง flip flag ของตัวเองได้ตามปกติ แต่ child ไม่ react กับมันอีกแล้ว (`showMap()` กลายเป็น no-op เมื่อ map ถูกสร้างแล้ว) เป็น regression เงียบๆ ที่กระทบทุก consumer วิธีจับก่อน ship คือ grep หาทุกจุดที่เรียก method ที่กำลังจะแก้ (`showMap()`) และทุกจุดที่ใช้ selector ของ component นั้นในเทมเพลต ก่อนเปลี่ยน contract ของมัน ไม่ใช่ดูแค่ caller ที่ report บั๊กเข้ามา
+
+**Thai Explanation:** บทเรียนคือ ก่อนเปลี่ยนพฤติกรรมของ public method ใน shared component ต้องตอบให้ได้ก่อนว่า "มีใครเรียกใช้บ้าง" ทั้งหมด ไม่ใช่แค่ที่ตัวเองกำลังแก้ปัญหาอยู่ — grep เป็นเครื่องมือถูกที่สุดสำหรับเช็คสิ่งนี้
+
+Related: [[Leaflet Map Zoom Reset on Position Change]], [[Check Recent Commits Before Fixing Shared Component]]
+
+## 34. Case-sensitive property binding name silently binding to nothing
+
+**English Question:** An Angular template writes `[taskformcode]="_taskFormCode"` (all lowercase) targeting a component with `@Input() taskFormCode` (camelCase). The app still builds with 0 errors and runs without any console warning, but the child component's `taskFormCode` is always `undefined`. Why doesn't the compiler catch this, unlike a case-mismatched component *selector* which can produce a hard type error?
+
+**English Answer:** Whether this is caught depends on how strict the project's Angular template type-checking configuration is (`strictTemplates`/`fullTemplateTypeCheck` in `tsconfig`). Without strict checking, an unrecognized property binding on a custom element is tolerated as if it might be a native DOM property/attribute — no input on the component matches, so nothing is bound, and the child simply keeps its default/undefined value; there is no fallback event misinterpretation like there can be for two-way `[(x)]` bindings, so it fails completely silently.
+
+**Thai Question:** เทมเพลตของ Angular เขียน `[taskformcode]="_taskFormCode"` (ตัวเล็กหมด) แต่ component มี `@Input() taskFormCode` (camelCase) แอปยัง build ผ่าน 0 error รันไม่มี warning ใน console เลย แต่ `taskFormCode` ใน child เป็น `undefined` ตลอด ทำไม compiler ไม่จับ ทั้งที่ selector ที่สะกด case ผิดเคย error มาแล้ว?
+
+**Thai Answer:** ขึ้นอยู่กับว่า config การเช็ค template ของโปรเจกต์เข้มงวดแค่ไหน (`strictTemplates`/`fullTemplateTypeCheck` ใน `tsconfig`) ถ้าไม่เข้มงวด property binding ที่ไม่รู้จักบน custom element จะถูกมองข้ามเหมือนอาจเป็น native DOM property/attribute — ไม่มี input ไหนของ component ตรงกัน เลยไม่ bind อะไรเลย child จะใช้ค่า default/undefined ต่อไป ไม่มีการตีความผิดเป็น event แบบที่เกิดกับ two-way binding `[(x)]` เพราะงั้นจึงพังแบบเงียบสนิท
+
+**Thai Explanation:** นี่คือเหตุผลว่าทำไมเวลาสงสัยว่า "ทำไม `@Input()` เป็น undefined" ต้องเช็คตัวสะกด binding ใน template ให้ตรงกับชื่อ property เป๊ะๆ (case-sensitive) เป็นข้อแรกๆ ก่อนไปสงสัยจุดอื่น เพราะ compiler ไม่ช่วยเตือนกรณีนี้เลย
+
+Related: [[Case-Sensitive Component Selector in Template Type Checker]], [[Missing Input Binding Causes Undefined Crash]], [[Case-Mismatched Property Binding Silently No-ops]]
