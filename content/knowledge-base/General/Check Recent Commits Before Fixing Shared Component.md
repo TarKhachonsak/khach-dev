@@ -34,3 +34,20 @@
 Related: [[Force-Show Feature by Task Code Allowlist]]
 
 Source: [[2026-07-07]]
+
+## Update 2026-07-14 — ต้อง grep หา caller ทั้งหมด ไม่ใช่แค่เช็ค git log
+
+เจอความเสี่ยงอีกแบบของ shared component ที่ไม่เกี่ยวกับ git history เลย: กำลังแก้ race condition bug ใน `LeafletMapOverviewComponent.showMap()` โดยเปลี่ยนจาก toggle behavior (สร้าง/ทำลายสลับกันทุกครั้งที่เรียก) เป็น idempotent (`if (this.map) return;`) — แก้บั๊กที่ report มาได้จริง แต่ไม่ได้เช็คก่อนว่ามีใครเรียก `showMap()` จากที่อื่นอีกบ้าง
+
+พอ grep ย้อนกลับ (`grep -rn "\.showMap()"`) หลังแก้เสร็จแล้ว ถึงพบว่า component นี้ถูกเรียกจากฟอร์มอื่นอีก **~25 ไฟล์** ทุกไฟล์พึ่งพา toggle behavior เดิมผ่าน pattern `onToggleMap() { flag = !flag; child.showMap(); }` — การเปลี่ยนเป็น idempotent ทำให้ทุกไฟล์เหล่านั้นเสียความสามารถ "กดปุ่มซ้ำเพื่อซ่อนแผนที่" ไปพร้อมกันหมด โดยไม่มี error ใดๆ เตือนตอน build (ดู [[Leaflet Map Zoom Reset on Position Change]] update 2026-07-14)
+
+**ส่วนขยายของหลักการเดิม:** การเช็ค `git log` ป้องกันได้แค่ "คนอื่นกำลังแก้ไฟล์เดียวกันคู่ขนาน" แต่ไม่ได้ป้องกัน "การเปลี่ยน contract ของ public method ที่มีคน**เรียกใช้อยู่แล้ว**จากหลายที่" — สองอย่างนี้ต้อง check คนละแบบ:
+
+1. `git log -- <path>` → ป้องกันคนอื่นแก้ไฟล์เดียวกันคู่ขนาน (ความเสี่ยงระดับทีม)
+2. `grep -rn "methodName\(\)"` หรือ `grep -rn "<component-selector"` ทั่ว repo → ป้องกันการเปลี่ยน behavior ที่กระทบ caller ที่มีอยู่แล้ว (ความเสี่ยงระดับ API contract) — **ต้องทำก่อนเปลี่ยน public method ของ shared component ทุกครั้ง ไม่ใช่แค่ตอนสงสัยว่ามีคนแก้พร้อมกัน**
+
+ทั้งสองข้อไม่ทดแทนกัน ต้องทำทั้งคู่เมื่อแตะ shared component
+
+Related: [[Leaflet Map Zoom Reset on Position Change]]
+
+Source เพิ่มเติม: [[2026-07-14]]
