@@ -376,3 +376,31 @@ Related: [[Leaflet Map Zoom Reset on Position Change]], [[Check Recent Commits B
 **Thai Explanation:** นี่คือเหตุผลว่าทำไมเวลาสงสัยว่า "ทำไม `@Input()` เป็น undefined" ต้องเช็คตัวสะกด binding ใน template ให้ตรงกับชื่อ property เป๊ะๆ (case-sensitive) เป็นข้อแรกๆ ก่อนไปสงสัยจุดอื่น เพราะ compiler ไม่ช่วยเตือนกรณีนี้เลย
 
 Related: [[Case-Sensitive Component Selector in Template Type Checker]], [[Missing Input Binding Causes Undefined Crash]], [[Case-Mismatched Property Binding Silently No-ops]]
+
+## 35. Cascading dropdown loses its selection label after a wholesale data replacement
+
+**English Question:** A form has cascading dropdowns (province → district → subdistrict), where each level's `dataSource` array only gets populated inside the level above's `onValueChanged` handler. When an "edit" action replaces the whole form-data object at once (e.g. `this.formData = { ...existingRecord }`), the district/subdistrict fields show blank even though their IDs are present in the data. Why, and how do you fix it?
+
+**English Answer:** `onValueChanged` fires on genuine user interaction (or on a widget's own first-value assignment during creation) — it does not fire just because you replaced the bound object wholesale, so the dependent dropdowns' `dataSource` arrays stay empty from their initial state. The SelectBox then can't resolve a display label for the ID it's bound to, even though the ID itself is intact in the data. Fix by manually replaying the same cascade handlers with the existing IDs right after loading the record, so each level's dataSource gets populated to include the persisted ID.
+
+**Thai Question:** ฟอร์มมี cascading dropdown (จังหวัด → อำเภอ → ตำบล) ที่แต่ละระดับ `dataSource` จะถูกเติมข้อมูลแค่ตอน `onValueChanged` ของระดับบนทำงานเท่านั้น พอ action "แก้ไข" replace ทั้ง form-data object ทีเดียว (เช่น `this.formData = { ...existingRecord }`) ช่อง อำเภอ/ตำบล กลับว่างเปล่า ทั้งที่ id ยังอยู่ในข้อมูลครบ ทำไมถึงเป็นแบบนี้ แล้วแก้ยังไง?
+
+**Thai Answer:** `onValueChanged` fire ตอน user โต้ตอบจริง (หรือตอน widget ถูก set ค่าครั้งแรกตอนสร้าง) เท่านั้น ไม่ได้ fire แค่เพราะ object ที่ผูกไว้ถูกแทนที่ทั้งก้อน — `dataSource` ของ dropdown ที่ขึ้นกับระดับบนเลยค้างว่างเปล่าตามค่าเริ่มต้น SelectBox เลย resolve label ของ id ที่ผูกอยู่ไม่ได้ ทั้งที่ id เองยังอยู่ในข้อมูลปกติ วิธีแก้คือเรียก cascade handler เดิมด้วย id ที่มีอยู่แล้วเอง ทันทีหลังโหลด record เข้ามา เพื่อเติม dataSource ของแต่ละระดับให้มี item ตรงกับ id ที่ persist ไว้
+
+**Thai Explanation:** หลักการเดียวกับ "restore UI state จาก persisted data" — event-driven population ใช้ได้กับ user interaction เท่านั้น พอมีทางเข้าข้อมูลแบบอื่น (bulk load/edit) ต้อง replay logic เดียวกันเองเสมอ ไม่ใช่หวังพึ่ง event ที่ไม่มีทางถูกยิงในเส้นทางนั้น
+
+Related: [[Restore UI State After Load Data]]
+
+## 36. Verifying which backend service actually handles a request before deep-diving
+
+**English Question:** While debugging a "data disappears after save" bug across a full stack, you assumed the request was handled by the same backend service you'd fixed earlier that same day for a different form — based on that assumption you spent time reading the wrong file. What's the reliable way to confirm which service/endpoint actually handles a given frontend action, and why is memory/context from an earlier session not enough?
+
+**English Answer:** Check direct, current evidence: the frontend component's own import statement / injected service (e.g. `form-inspection-location10.service.ts`) and the Network tab's actual request URL — both point unambiguously at the real endpoint. Prior-session context ("this project's forms use service X") is a hypothesis, not a fact for the specific form currently being debugged, especially in a codebase with many near-identical form variants (PHINAI3 through PHINAI10) — pattern-matching from memory across different forms is a common source of wasted investigation time.
+
+**Thai Question:** ระหว่าง debug บั๊ก "ข้อมูลหายหลังบันทึก" ข้ามทั้ง stack เคยสันนิษฐานว่า request ถูกจัดการโดย backend service เดียวกับที่เพิ่งแก้ไปเมื่อเช้าสำหรับฟอร์มอื่น แล้วเสียเวลาไปอ่านไฟล์ผิด จะยืนยันได้อย่างน่าเชื่อถือได้อย่างไรว่า service/endpoint ไหนจัดการ action นั้นจริง แล้วทำไม context จาก session ก่อนหน้าถึงไม่พอ?
+
+**Thai Answer:** เช็คหลักฐานตรงและปัจจุบันเสมอ: import statement/service ที่ component ฝั่ง frontend ใช้จริง (เช่น `form-inspection-location10.service.ts`) กับ URL ของ request จริงใน Network tab — ทั้งสองอย่างชี้ไป endpoint จริงแบบไม่กำกวม ส่วน context จาก session ก่อนหน้า ("โปรเจกต์นี้ฟอร์มใช้ service X") เป็นแค่สมมติฐาน ไม่ใช่ข้อเท็จจริงสำหรับฟอร์มที่กำลัง debug อยู่ตอนนี้ โดยเฉพาะในโปรเจกต์ที่มีฟอร์มคล้ายกันจำนวนมาก (PHINAI3 ถึง PHINAI10) — การจับคู่ pattern จากความจำข้ามฟอร์มเป็นสาเหตุทั่วไปของการเสียเวลาสืบสวนแบบผิดทาง
+
+**Thai Explanation:** ยิ่งโปรเจกต์มีโครงสร้างซ้ำๆ กันหลายชุด (ฟอร์มคล้ายกันหลายสิบตัว) ยิ่งต้องระวังการ "เดาจากประสบการณ์ที่คล้ายกัน" แทนการ verify จริง เพราะความคล้ายกันของ pattern ไม่ได้แปลว่าเป็น instance เดียวกัน
+
+Related: [[Shared Sync Helper Not Wired Into Every Form Controller]]
